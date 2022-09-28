@@ -22,13 +22,13 @@ class Config(_Config):
     # darwin_dataset_slug: str = "frame-annotations"
 
     # Model
-    keypoint_names = ("back_tire",)
+    keypoint_names = ("back_tire", "front_tire")
     rgb_mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
     rgb_std: tuple[float, float, float] = (0.229, 0.224, 0.225)
     image_resize: tuple[int, int] = (480, 640)  # Height, width
 
     # TODO: we might want to make this paramete resolution independent
-    # covariance_2d: float = 20
+    covariance_2d: float = 20
 
     # Training
     batch_size: int = 4
