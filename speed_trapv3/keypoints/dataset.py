@@ -104,6 +104,9 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
             for p in Config.annotations_directory.glob("*.json")
         ]
     )
+    import os
+
+    print("Dr.Dre says ", os.listdir(str(Config.annotations_directory)))
     samples = []
 
     for slug in slugs:
