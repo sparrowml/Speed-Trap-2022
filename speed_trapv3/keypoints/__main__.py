@@ -1,7 +1,7 @@
 """Expose keypoints CLI."""
 from typing import Callable
 
-from speed_trapv3.keypoints.datasets import version_annotations
+from speed_trapv3.keypoints.dataset import version_annotations
 
 
 def commands() -> dict[str, Callable[..., None]]:
