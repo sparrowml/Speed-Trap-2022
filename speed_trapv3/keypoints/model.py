@@ -5,13 +5,17 @@ from typing import Union
 import torch
 from torchvision.models.segmentation import fcn_resnet50
 
+from .config import Config
+
 
 class SegmentationModel(torch.nn.Module):
     """Model for prediction court/net key points."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.fcn = fcn_resnet50(num_classes=2, pretrained_backbone=True, aux_loss=False)
+        self.fcn = fcn_resnet50(
+            num_classes=Config.num_classes, pretrained_backbone=True, aux_loss=False
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Run a forward pass with the model."""

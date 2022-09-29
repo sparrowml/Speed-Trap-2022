@@ -1,5 +1,6 @@
 import json
 import os
+from distutils.command.config import config
 from pathlib import Path
 from typing import Any, Optional
 
@@ -10,9 +11,6 @@ from PIL import Image
 
 from .config import Config
 from .utils import Holdout, get_holdout
-
-# from speed_trapv3.keypoints import Config
-
 
 image_transform = T.Compose(
     [
@@ -31,45 +29,40 @@ def version_annotations(darwin_path: str) -> None:
     )
     total_annotations = 0
     no_labels = []
-    temp_count = 0
     for slug in slugs:
-        temp_count += 1
         points: dict[str, tuple[float, float]] = dict()
         annotation_path = raw_annotations_directory / f"{slug}.json"
         with open(annotation_path) as f:
             raw_data = json.loads(f.read())
         w = raw_data["image"]["width"]
         h = raw_data["image"]["height"]
-        if len(raw_data["annotations"]) > 0:
-            for annotation in raw_data["annotations"]:
-                object_name = annotation["name"]
-                if object_name in ("back_tire", "front_tire"):
-                    # Save relative points to disk
-                    x, y = map(
-                        float,
-                        [
-                            annotation["keypoint"]["x"] / w,
-                            annotation["keypoint"]["y"] / h,
-                        ],
-                    )
-                    points[object_name] = x, y
+        for annotation in raw_data["annotations"]:
+            object_name = annotation["name"]
+            if object_name in ("back_tire", "front_tire"):
+                # Save relative points to disk
+                x, y = map(
+                    float,
+                    [
+                        annotation["keypoint"]["x"] / w,
+                        annotation["keypoint"]["y"] / h,
+                    ],
+                )
+                points[object_name] = x, y
+        output = []
+        for key in Config.keypoint_names:
+            if key in points:
+                output.append(points[key])
+        if len(output) > 0:
+            with open(Config.annotations_directory / f"{slug}.json", "w") as f:
+                f.write(json.dumps(output))
+            total_annotations += 1
         else:
             no_labels.append(slug)
-        output = []
-        try:
-            for key in Config.keypoint_names:
-                output.append(points[key])
-        except Exception as e:
-            print(f"In {slug}, keypoint didn't exist for class {key}!")
-            print(e)
-        with open(Config.annotations_directory / f"{slug}.json", "w") as f:
-            f.write(json.dumps(output))
-        total_annotations += 1
     print(
         f"{total_annotations} annotation files saved at {Config.annotations_directory}"
     )
     if len(no_labels) > 0:
-        print("Warning: these files did not have labels at all!", no_labels)
+        print("Warning: these files did not have keypoints at all!", no_labels)
 
 
 def keypoints_to_heatmap(
@@ -114,6 +107,13 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
         annotation_path = Config.annotations_directory / f"{slug}.json"
         with open(annotation_path) as f:
             keypoints = np.array(json.loads(f.read()))
+            if (
+                len(keypoints) < Config.num_classes
+            ):  # if all classes aren't present, take the first class (row) and repeat it to compensate for the absent classes.
+                repititions = Config.num_classes
+                axis = 1
+                keypoints = np.tile(keypoints[0], (repititions, axis))
+
         samples.append(
             {
                 "holdout": sample_holdout.name,
@@ -139,7 +139,6 @@ class SegmentationDataset(torch.utils.data.Dataset):
         """Get the tensor dict for a sample."""
         sample = self.samples[idx]
         resize_height, resize_width = Config.image_resize
-        print("Frodo says", sample["keypoints"].shape, sample["image_path"])
         keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
         heatmaps = []
         for x, y in keypoints:

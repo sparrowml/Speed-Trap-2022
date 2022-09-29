@@ -26,6 +26,7 @@ class Config(_Config):
     rgb_mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
     rgb_std: tuple[float, float, float] = (0.229, 0.224, 0.225)
     image_resize: tuple[int, int] = (480, 640)  # Height, width
+    num_classes: int = 2
 
     # TODO: we might want to make this paramete resolution independent
     covariance_2d: float = 20
