@@ -78,12 +78,13 @@ def train_model(checkpoint_path: Optional[str] = None) -> None:
     """Train model command."""
     pl_model = SegmentationLightning()
     trainer = pl.Trainer(
-        callbacks=[EarlyStopping("dev_rel_error")],
+        callbacks=[EarlyStopping("dev_rel_error", patience=8)],
         resume_from_checkpoint=checkpoint_path,
         log_every_n_steps=5,
-        # max_epochs=Config.max_epochs,
-        max_epochs=2,
+        max_epochs=Config.max_epochs,
         gpus=Config.gpus,
+        # overfit_batches=1,
+        # callbacks=None,
     )
     trainer.fit(pl_model)
 
