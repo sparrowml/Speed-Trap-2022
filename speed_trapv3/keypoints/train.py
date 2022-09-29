@@ -81,7 +81,8 @@ def train_model(checkpoint_path: Optional[str] = None) -> None:
         callbacks=[EarlyStopping("dev_rel_error")],
         resume_from_checkpoint=checkpoint_path,
         log_every_n_steps=5,
-        max_epochs=Config.max_epochs,
+        # max_epochs=Config.max_epochs,
+        max_epochs=2,
         gpus=Config.gpus,
     )
     trainer.fit(pl_model)
