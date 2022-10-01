@@ -16,7 +16,6 @@ image_transform = T.Compose(
     [
         T.Resize(Config.image_resize),
         T.ToTensor(),
-        # T.Normalize(Config.rgb_mean, Config.rgb_std),
     ]
 )
 

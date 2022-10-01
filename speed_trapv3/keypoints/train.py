@@ -25,9 +25,10 @@ class SegmentationLightning(pl.LightningModule):
         self.dev_dataset = SegmentationDataset(Holdout.DEV)
 
     def custom_histogram_adder(self):
-        # iterating through all parameters
         for name, params in self.named_parameters():
-            self.logger.experiment.add_histogram(name, params, self.current_epoch)
+            self.logger.experiment.add_histogram(
+                name, params, self.current_epoch
+            )  # iterating through all parameters
 
     def train_dataloader(self) -> torch.utils.data.DataLoader:
         """Return train dataloader."""
@@ -45,11 +46,9 @@ class SegmentationLightning(pl.LightningModule):
             num_workers=Config.num_workers,
         )
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, _):
         """Perform training step."""
-        if self.current_epoch == 0:
-            # self.reference_image = (batch["image"][0]).unsqueeze(0)
-            self.reference_image = batch["image"]
+        self.reference_image = batch["image"]
         result = self.model(batch["image"])
         loss = F.binary_cross_entropy(result["heatmaps"], batch["heatmaps"])
         relative_error = torch.norm(
@@ -62,52 +61,16 @@ class SegmentationLightning(pl.LightningModule):
         self.log("train_rel_error", relative_error, **logger_kwargs)
         return loss
 
-    def makegrid(output, numrows):
-        outer = torch.Tensor.cpu(output).detach()
-        plt.figure(figsize=(20, 5))
-        b = np.array([]).reshape(0, outer.shape[2])
-        c = np.array([]).reshape(numrows * outer.shape[2], 0)
-        i = 0
-        j = 0
-        while i < outer.shape[1]:
-            img = outer[0][i]
-            b = np.concatenate((img, b), axis=0)
-            j += 1
-            if j == numrows:
-                c = np.concatenate((c, b), axis=1)
-                b = np.array([]).reshape(0, outer.shape[2])
-                j = 0
-
-            i += 1
-        return c
-
     def showActivations(self, x):
-        # logging reference image
         self.logger.experiment.add_image(
             "input", torch.Tensor.cpu(x[0][0]), self.current_epoch, dataformats="HW"
-        )
-
-    def matplotlib_imshow(self, img, one_channel=False):
-        if one_channel:
-            img = img.mean(dim=0)
-        img = img / 2 + 0.5  # unnormalize
-        img = torch.Tensor.cpu(img)
-        npimg = img.numpy()
-        if one_channel:
-            # plt.imshow(npimg, cmap="Greys")
-            plt.savefig(npimg)
-        else:
-            # plt.imshow(np.transpose(npimg, (1, 2, 0)))
-            plt.savefig(np.transpose(npimg, (1, 2, 0)))
+        )  # logging reference image
 
     def training_epoch_end(self, outputs):
         #  the function is called after every epoch is completed
-
-        # calculating average loss
-        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
-
-        # creating log dictionary
-        # tensorboard_logs = {"loss": avg_loss}
+        avg_loss = torch.stack(
+            [x["loss"] for x in outputs]
+        ).mean()  # Calculating avg loss
         self.log(
             "dev_rel_error",
             avg_loss,
@@ -115,15 +78,16 @@ class SegmentationLightning(pl.LightningModule):
             on_epoch=True,
             logger=True,
         )
-        # logging histograms
-        self.custom_histogram_adder()
+        self.custom_histogram_adder()  # logging histograms
         self.logger.experiment.add_scalar(
             "Loss/Train", avg_loss, self.current_epoch
         )  # scalar name, y_coordinate, x_coordinate
-        # self.showActivations(self.reference_image)
         img_grid = torchvision.utils.make_grid(self.reference_image)
-        # self.matplotlib_imshow(img_grid, one_channel=False)
-        self.logger.experiment.add_image("test_imgs", img_grid)
+        self.logger.experiment.add_image(
+            f"test_imgs {self.current_epoch}",
+            img_grid,
+            self.current_epoch,
+        )
 
     def validation_step(self, batch, _):
         """Perform validation step."""
@@ -157,11 +121,10 @@ def train_model(checkpoint_path: Optional[str] = None) -> None:
     trainer = pl.Trainer(
         resume_from_checkpoint=checkpoint_path,
         log_every_n_steps=5,
-        # max_epochs=Config.max_epochs,
-        max_epochs=2,
+        max_epochs=Config.max_epochs,
         gpus=Config.gpus,
         callbacks=[
-            EarlyStopping("dev_rel_error", patience=3),
+            EarlyStopping("dev_rel_error", patience=8),
         ],
         # profiler="pytorch",
         profiler="simple",
