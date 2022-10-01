@@ -6,6 +6,7 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+import torchvision
 from pytorch_lightning.callbacks import EarlyStopping
 
 from .config import Config
@@ -46,8 +47,9 @@ class SegmentationLightning(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         """Perform training step."""
-        if batch_idx == 0:
-            self.reference_image = (batch["image"][0]).unsqueeze(0)
+        if self.current_epoch == 0:
+            # self.reference_image = (batch["image"][0]).unsqueeze(0)
+            self.reference_image = batch["image"]
         result = self.model(batch["image"])
         loss = F.binary_cross_entropy(result["heatmaps"], batch["heatmaps"])
         relative_error = torch.norm(
@@ -85,6 +87,19 @@ class SegmentationLightning(pl.LightningModule):
             "input", torch.Tensor.cpu(x[0][0]), self.current_epoch, dataformats="HW"
         )
 
+    def matplotlib_imshow(self, img, one_channel=False):
+        if one_channel:
+            img = img.mean(dim=0)
+        img = img / 2 + 0.5  # unnormalize
+        img = torch.Tensor.cpu(img)
+        npimg = img.numpy()
+        if one_channel:
+            # plt.imshow(npimg, cmap="Greys")
+            plt.savefig(npimg)
+        else:
+            # plt.imshow(np.transpose(npimg, (1, 2, 0)))
+            plt.savefig(np.transpose(npimg, (1, 2, 0)))
+
     def training_epoch_end(self, outputs):
         #  the function is called after every epoch is completed
 
@@ -105,7 +120,10 @@ class SegmentationLightning(pl.LightningModule):
         self.logger.experiment.add_scalar(
             "Loss/Train", avg_loss, self.current_epoch
         )  # scalar name, y_coordinate, x_coordinate
-        self.showActivations(self.reference_image)
+        # self.showActivations(self.reference_image)
+        img_grid = torchvision.utils.make_grid(self.reference_image)
+        # self.matplotlib_imshow(img_grid, one_channel=False)
+        self.logger.experiment.add_image("test_imgs", img_grid)
 
     def validation_step(self, batch, _):
         """Perform validation step."""
@@ -139,7 +157,8 @@ def train_model(checkpoint_path: Optional[str] = None) -> None:
     trainer = pl.Trainer(
         resume_from_checkpoint=checkpoint_path,
         log_every_n_steps=5,
-        max_epochs=Config.max_epochs,
+        # max_epochs=Config.max_epochs,
+        max_epochs=2,
         gpus=Config.gpus,
         callbacks=[
             EarlyStopping("dev_rel_error", patience=3),
