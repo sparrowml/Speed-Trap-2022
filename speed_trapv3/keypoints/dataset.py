@@ -1,8 +1,9 @@
 import json
 import os
+from ctypes import Union
 from distutils.command.config import config
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -23,9 +24,9 @@ image_transform = T.Compose(
 
 
 class PrepAnnotations:
+    """Set of tools to process the annotation files."""
+
     def __init__(self):
-        self.total_annotations = 0
-        self.no_labels = []
         self.vehicles = []
         self.back_tires = []
         self.front_tires = []
@@ -33,16 +34,50 @@ class PrepAnnotations:
         self.completed_vehicles = {}
         self.img_dim = None
 
-    def set_img_dim(self, _dim):
+    def set_img_dim(self, _dim: tuple) -> None:
+        """Set the image size to the size found in the JSON file.
+
+        Parameters
+        ----------
+        _dim :
+            Dimensions of the image
+        """
         self.img_dim = _dim
 
-    def get_img_dim(self):
+    def get_img_dim(self) -> tuple:
+        """Fetch the image dimensions
+
+        Returns
+        -------
+            Dimensions of the image
+        """
         return self.img_dim
 
-    def validate_inclusion(self, _keypoint, _bbx):
+    def validate_inclusion(self, _keypoint: Dict, _bbx) -> bool:
+        """Check if a given keypoint is inside a bounding box.
+
+        Parameters
+        ----------
+        _keypoint :
+            Keypoint to be matched the keypoint
+        _bbx :
+            Bounding box to matched with the keypoint
+
+        Returns
+        -------
+            Returns True if the keypoint is inside or on the boundary of the bounding box
+        """
         return cv2.pointPolygonTest(_bbx, _keypoint, False) >= 0
 
-    def preprocess_bbx(self, _bbx, form="tlbr"):
+    def preprocess_bbx(self, _bbx, form: Optional[str] = "tlbr"):
+        """Preprocess the box to be compatible with openCV and file save.
+        When form = tlbr, the bounding box is returned as a list of [x1, y1, x2, y2].
+        Otherwise, it returns as a np.array([(x1, y1), (x1, y2),(x2, y2),(x2, y1)]).
+
+        Returns
+        -------
+            Box coordinates are changed from absolute tlwh to relative tlbr.
+        """
         w, h = self.get_img_dim()
         bbx = _bbx["bounding_box"]
         bbx = Boxes(
@@ -50,23 +85,46 @@ class PrepAnnotations:
             PType.absolute_tlwh,
         ).to_tlbr()
         bbx = bbx.array
-        if form == "tlbr":
-            bbx = bbx / np.array([w, h, w, h])
+        if form == "tlbr":  # used when writing to JSON files
+            bbx = bbx / np.array([w, h, w, h])  # change to relative space
             return bbx.tolist()
-        else:
+        else:  # Used when interacting with openCV
             return np.array(
                 [(bbx[0], bbx[1]), (bbx[0], bbx[3]), (bbx[2], bbx[3]), (bbx[2], bbx[1])]
             )
 
-    def preprocess_keypoint(self, _keypoint, _relative=False):
+    def preprocess_keypoint(self, _keypoint: Dict, _relative: Optional[bool] = False):
+        """Preprocess a given keypoint to write to file
+
+        Parameters
+        ----------
+        _keypoint :
+            Keypoint to be preprocessed
+        _relative :
+            Enable this flag if the coordinates need to be in relative space
+
+        Returns
+        -------
+            A tuple of (x, y) coordinates of the processed keypoints
+        """
         keypoint = _keypoint["keypoint"]
-        if _relative == False:
+        if _relative == False:  # Used for openCV
             return (int(keypoint["x"]), int(keypoint["y"]))
-        else:
+        else:  # Used for writing to file
             w, h = self.get_img_dim()
             return (keypoint["x"] / w, keypoint["y"] / h)
 
-    def find_relationships(self, _vehicles, _tires):
+    def find_relationships(self, _vehicles: list, _tires: list) -> None:
+        """Map the keypoints found in Darwin annotation files to corresponding vehicles
+        Assumption: Every vehicle has at most two keypoints (front_tire and back_tire)
+
+        Parameters
+        ----------
+        _vehicles :
+            list of vehicles detected on the image
+        _tires : list
+            list of tires detected on the image
+        """
         for tire in _tires:
             for vehicle in _vehicles:
                 if vehicle["id"] in self.completed_vehicles:
@@ -85,11 +143,17 @@ class PrepAnnotations:
                         )
                         self.completed_vehicles[vehicle["id"]] = True
 
-    def get_vehicle_to_tires(self):
+    def get_vehicle_to_tires(self) -> Dict:
+        """Fetch the global dictionary that maps vehicles to tires
+
+        Returns
+        -------
+            A key value pair set that keeps track of which tire belongs to which vehicle
+        """
         return self.vehicle_to_tires
 
 
-def version_annotations(_annotation_dir, _save_dir) -> None:
+def version_annotations(_annotation_dir: str, _save_dir: str) -> None:
     """Convert Darwin annotations to Sparrow format so they can be versioned."""
     annotation_dir = _annotation_dir
     save_dir = _save_dir
@@ -104,7 +168,7 @@ def version_annotations(_annotation_dir, _save_dir) -> None:
             raw_data = json.loads(f.read())
         prep_tools.set_img_dim(
             (raw_data["image"]["width"], raw_data["image"]["height"])
-        )
+        )  # Grab the image size from the JSON file and store it in a member of the PrepAnnotation class
         for annotation in raw_data["annotations"]:
             object_name = annotation["name"]
             if object_name == "vehicle":
@@ -113,10 +177,15 @@ def version_annotations(_annotation_dir, _save_dir) -> None:
                 prep_tools.front_tires.append(annotation)
             elif object_name == "back_tire":
                 prep_tools.back_tires.append(annotation)
-        prep_tools.find_relationships(prep_tools.vehicles, prep_tools.back_tires)
-        prep_tools.find_relationships(prep_tools.vehicles, prep_tools.front_tires)
-        for vehicle_id in prep_tools.vehicle_to_tires:
-            vehicle = prep_tools.vehicle_to_tires[vehicle_id]
+        prep_tools.find_relationships(
+            prep_tools.vehicles, prep_tools.back_tires
+        )  # map the back_tires to vehicles
+        prep_tools.find_relationships(
+            prep_tools.vehicles, prep_tools.front_tires
+        )  # map the front_tires to vehicles
+        vehicle_to_tires = prep_tools.get_vehicle_to_tires()
+        for vehicle_id in vehicle_to_tires:
+            vehicle = vehicle_to_tires[vehicle_id]
             name = f"{slug}--{vehicle_id}"
             with open(Path(save_dir) / f"{name}.json", "w") as f:
                 f.write(json.dumps(vehicle))
