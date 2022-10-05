@@ -23,9 +23,7 @@ image_transform = T.Compose(
 
 
 class PrepAnnotations:
-    def __init__(self, _annotation_dir, _save_dir):
-        self.annotation_dir = _annotation_dir
-        self.save_dir = _save_dir
+    def __init__(self):
         self.total_annotations = 0
         self.no_labels = []
         self.vehicles = []
@@ -87,35 +85,41 @@ class PrepAnnotations:
                         )
                         self.completed_vehicles[vehicle["id"]] = True
 
-    def version_annotations(self) -> None:
-        """Convert Darwin annotations to Sparrow format so they can be versioned."""
-        raw_annotations_directory = Path(self.annotation_dir)
-        slugs = set(
-            [
-                p.name.removesuffix(".json")
-                for p in raw_annotations_directory.glob("*.json")
-            ]
+    def get_vehicle_to_tires(self):
+        return self.vehicle_to_tires
+
+
+def version_annotations(_annotation_dir, _save_dir) -> None:
+    """Convert Darwin annotations to Sparrow format so they can be versioned."""
+    annotation_dir = _annotation_dir
+    save_dir = _save_dir
+    raw_annotations_directory = Path(annotation_dir)
+    slugs = set(
+        [p.name.removesuffix(".json") for p in raw_annotations_directory.glob("*.json")]
+    )
+    for slug in slugs:
+        prep_tools = PrepAnnotations()
+        annotation_path = raw_annotations_directory / f"{slug}.json"
+        with open(annotation_path) as f:
+            raw_data = json.loads(f.read())
+        prep_tools.set_img_dim(
+            (raw_data["image"]["width"], raw_data["image"]["height"])
         )
-        for slug in slugs:
-            annotation_path = raw_annotations_directory / f"{slug}.json"
-            with open(annotation_path) as f:
-                raw_data = json.loads(f.read())
-            self.set_img_dim((raw_data["image"]["width"], raw_data["image"]["height"]))
-            for annotation in raw_data["annotations"]:
-                object_name = annotation["name"]
-                if object_name == "vehicle":
-                    self.vehicles.append(annotation)
-                elif object_name == "front_tire":
-                    self.front_tires.append(annotation)
-                elif object_name == "back_tire":
-                    self.back_tires.append(annotation)
-            self.find_relationships(self.vehicles, self.back_tires)
-            self.find_relationships(self.vehicles, self.front_tires)
-            for vehicle_id in self.vehicle_to_tires:
-                vehicle = self.vehicle_to_tires[vehicle_id]
-                name = f"{slug}--{vehicle_id}"
-                with open(Path(self.save_dir) / f"{name}.json", "w") as f:
-                    f.write(json.dumps(vehicle))
+        for annotation in raw_data["annotations"]:
+            object_name = annotation["name"]
+            if object_name == "vehicle":
+                prep_tools.vehicles.append(annotation)
+            elif object_name == "front_tire":
+                prep_tools.front_tires.append(annotation)
+            elif object_name == "back_tire":
+                prep_tools.back_tires.append(annotation)
+        prep_tools.find_relationships(prep_tools.vehicles, prep_tools.back_tires)
+        prep_tools.find_relationships(prep_tools.vehicles, prep_tools.front_tires)
+        for vehicle_id in prep_tools.vehicle_to_tires:
+            vehicle = prep_tools.vehicle_to_tires[vehicle_id]
+            name = f"{slug}--{vehicle_id}"
+            with open(Path(save_dir) / f"{name}.json", "w") as f:
+                f.write(json.dumps(vehicle))
 
 
 def keypoints_to_heatmap(
@@ -208,8 +212,3 @@ class SegmentationDataset(torch.utils.data.Dataset):
             "labels": sample["labels"],
             "image": x,
         }
-
-
-# version_annotations(
-#     "/root/.darwin/datasets/sparrow-computing/kj_speedtrap/releases/backtirev1.0/annotations"
-# )

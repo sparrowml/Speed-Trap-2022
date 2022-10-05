@@ -1,0 +1,3 @@
+echo Initiating annotation files compiling...
+speed-trapv3 keypoints version-annotations "/root/.darwin/datasets/sparrow-computing/kj_speedtrap/releases/allv1/annotations" "/code/data/datasets/annotations"
+echo Finished compiling!
