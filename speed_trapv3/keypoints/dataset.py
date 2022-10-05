@@ -4,10 +4,12 @@ from distutils.command.config import config
 from pathlib import Path
 from typing import Any, Optional
 
+import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
 from PIL import Image
+from sparrow_datums import Boxes, PType
 
 from .config import Config
 from .utils import Holdout, get_holdout
@@ -20,122 +22,100 @@ image_transform = T.Compose(
 )
 
 
-# def version_annotations(darwin_path: str) -> None:
-#     """Convert Darwin annotations to Sparrow format so they can be versioned."""
-#     raw_annotations_directory = Path(darwin_path)
-#     slugs = set(
-#         [p.name.removesuffix(".json") for p in raw_annotations_directory.glob("*.json")]
-#     )
-#     total_annotations = 0
-#     no_labels = []
-#     for slug in slugs:
-#         points: dict[str, tuple[float, float]] = dict()
-#         annotation_path = raw_annotations_directory / f"{slug}.json"
-#         with open(annotation_path) as f:
-#             raw_data = json.loads(f.read())
-#         w = raw_data["image"]["width"]
-#         h = raw_data["image"]["height"]
-#         for annotation in raw_data["annotations"]:
-#             object_name = annotation["name"]
-#             if object_name in ("back_tire", "front_tire"):
-#                 # Save relative points to disk
-#                 x, y = map(
-#                     float,
-#                     [
-#                         annotation["keypoint"]["x"] / w,
-#                         annotation["keypoint"]["y"] / h,
-#                     ],
-#                 )
-#                 points[object_name] = x, y
-#         output = []
-#         for key in Config.keypoint_names:
-#             if key in points:
-#                 output.append(points[key])
-#         if len(output) > 0:
-#             with open(Config.annotations_directory / f"{slug}.json", "w") as f:
-#                 f.write(json.dumps(output))
-#             total_annotations += 1
-#         else:
-#             no_labels.append(slug)
-#     print(
-#         f"{total_annotations} annotation files saved at {Config.annotations_directory}"
-#     )
-#     if len(no_labels) > 0:
-#         print("Warning: these files did not have keypoints at all!", no_labels)
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct  4 12:46:08 2022
+class PrepAnnotations:
+    def __init__(self, _annotation_dir, _save_dir):
+        self.annotation_dir = _annotation_dir
+        self.save_dir = _save_dir
+        self.total_annotations = 0
+        self.no_labels = []
+        self.vehicles = []
+        self.back_tires = []
+        self.front_tires = []
+        self.vehicle_to_tires = {}
+        self.completed_vehicles = {}
+        self.img_dim = None
 
-@author: kjayamanna
-"""
+    def set_img_dim(self, _dim):
+        self.img_dim = _dim
 
-import json
-from pathlib import Path
+    def get_img_dim(self):
+        return self.img_dim
 
-import cv2
-import numpy as np
-from sparrow_datums import Boxes, PType
+    def validate_inclusion(self, _keypoint, _bbx):
+        return cv2.pointPolygonTest(_bbx, _keypoint, False) >= 0
 
-annotation_dir = darwin_path = "/home/kjayamanna/Downloads/"
-keypoint_names = ["back_tire", "front_tire"]
+    def preprocess_bbx(self, _bbx, form="tlbr"):
+        w, h = self.get_img_dim()
+        bbx = _bbx["bounding_box"]
+        bbx = Boxes(
+            np.array([bbx["x"], bbx["y"], bbx["w"], bbx["h"]]).round(0).astype(int),
+            PType.absolute_tlwh,
+        ).to_tlbr()
+        bbx = bbx.array
+        if form == "tlbr":
+            bbx = bbx / np.array([w, h, w, h])
+            return bbx.tolist()
+        else:
+            return np.array(
+                [(bbx[0], bbx[1]), (bbx[0], bbx[3]), (bbx[2], bbx[3]), (bbx[2], bbx[1])]
+            )
 
+    def preprocess_keypoint(self, _keypoint, _relative=False):
+        keypoint = _keypoint["keypoint"]
+        if _relative == False:
+            return (int(keypoint["x"]), int(keypoint["y"]))
+        else:
+            w, h = self.get_img_dim()
+            return (keypoint["x"] / w, keypoint["y"] / h)
 
-def validate_inclusion(_keypoint, _bbx):
-    return cv2.pointPolygonTest(_bbx, _keypoint, False) >= 0
-
-
-def preprocess_bbx(_bbx):
-    bbx = _bbx["bounding_box"]
-    bbx = Boxes(
-        np.array([bbx["x"], bbx["y"], bbx["w"], bbx["h"]]).round(0).astype(int),
-        PType.absolute_tlwh,
-    ).to_tlbr()
-    return bbx.array
-
-
-def preprocess_keypoint(_keypoint):
-    keypoint = _keypoint["keypoint"]
-    return (int(keypoint["x"]), int(keypoint["y"]))
-
-
-def version_annotations(darwin_path: str) -> None:
-    """Convert Darwin annotations to Sparrow format so they can be versioned."""
-    raw_annotations_directory = Path(darwin_path)
-    slugs = set(
-        [p.name.removesuffix(".json") for p in raw_annotations_directory.glob("*.json")]
-    )
-    total_annotations = 0
-    no_labels = []
-    vehicles = []
-    back_tires = []
-    front_tires = []
-    vehicle_to_tires = {}
-
-    for slug in slugs:
-        points: dict[str, tuple[float, float]] = dict()
-        annotation_path = raw_annotations_directory / f"{slug}.json"
-        with open(annotation_path) as f:
-            raw_data = json.loads(f.read())
-        w = raw_data["image"]["width"]
-        h = raw_data["image"]["height"]
-        for annotation in raw_data["annotations"]:
-            object_name = annotation["name"]
-            if object_name == "vehicle":
-                vehicles.append(annotation)
-            elif object_name == "front_tire":
-                front_tires.append(annotation)
-            elif object_name == "back_tire":
-                back_tires.append(annotation)
-        for back_tire in back_tires:
-            for vehicle in vehicles:
-                if validate_inclusion(
-                    preprocess_keypoint(back_tire), preprocess_bbx(vehicle)
+    def find_relationships(self, _vehicles, _tires):
+        for tire in _tires:
+            for vehicle in _vehicles:
+                if vehicle["id"] in self.completed_vehicles:
+                    continue
+                if self.validate_inclusion(
+                    self.preprocess_keypoint(tire), self.preprocess_bbx(vehicle, None)
                 ):
-                    if vehicle not in vehicle_to_tires:
-                        vehicle_to_tires[vehicle] = [back_tire]
+                    if vehicle["id"] not in self.vehicle_to_tires:
+                        self.vehicle_to_tires[vehicle["id"]] = {
+                            "bounding_box": self.preprocess_bbx(vehicle, "tlbr"),
+                            tire["name"]: self.preprocess_keypoint(tire, True),
+                        }
                     else:
-                        vehicle_to_tires[vehicle].append(back_tire)
+                        self.vehicle_to_tires[vehicle["id"]].update(
+                            {tire["name"]: self.preprocess_keypoint(tire, True)}
+                        )
+                        self.completed_vehicles[vehicle["id"]] = True
+
+    def version_annotations(self) -> None:
+        """Convert Darwin annotations to Sparrow format so they can be versioned."""
+        raw_annotations_directory = Path(self.annotation_dir)
+        slugs = set(
+            [
+                p.name.removesuffix(".json")
+                for p in raw_annotations_directory.glob("*.json")
+            ]
+        )
+        for slug in slugs:
+            annotation_path = raw_annotations_directory / f"{slug}.json"
+            with open(annotation_path) as f:
+                raw_data = json.loads(f.read())
+            self.set_img_dim((raw_data["image"]["width"], raw_data["image"]["height"]))
+            for annotation in raw_data["annotations"]:
+                object_name = annotation["name"]
+                if object_name == "vehicle":
+                    self.vehicles.append(annotation)
+                elif object_name == "front_tire":
+                    self.front_tires.append(annotation)
+                elif object_name == "back_tire":
+                    self.back_tires.append(annotation)
+            self.find_relationships(self.vehicles, self.back_tires)
+            self.find_relationships(self.vehicles, self.front_tires)
+            for vehicle_id in self.vehicle_to_tires:
+                vehicle = self.vehicle_to_tires[vehicle_id]
+                name = f"{slug}--{vehicle_id}"
+                with open(Path(self.save_dir) / f"{name}.json", "w") as f:
+                    f.write(json.dumps(vehicle))
 
 
 def keypoints_to_heatmap(
