@@ -1,14 +1,14 @@
 import json
-import os
 from ctypes import Union
 from distutils.command.config import config
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
+import torchvision.transforms.functional as TF
 from PIL import Image
 from sparrow_datums import Boxes, PType
 
@@ -16,10 +16,7 @@ from .config import Config
 from .utils import Holdout, get_holdout
 
 image_transform = T.Compose(
-    [
-        T.Resize(Config.image_resize),
-        T.ToTensor(),
-    ]
+    [T.Resize(Config.image_resize), T.ToTensor(), T.functional.crop()]
 )
 
 
@@ -115,7 +112,7 @@ class PrepAnnotations:
             return (keypoint["x"] / w, keypoint["y"] / h)
 
     def find_relationships(self, _vehicles: list, _tires: list) -> None:
-        """Map the keypoints found in Darwin annotation files to corresponding vehicles
+        """Map the keypoints found in Darwin annotation files to corresponding vehicles.
         Assumption: Every vehicle has at most two keypoints (front_tire and back_tire)
 
         Parameters
@@ -148,7 +145,7 @@ class PrepAnnotations:
 
         Returns
         -------
-            A key value pair set that keeps track of which tire belongs to which vehicle
+            A key value pair that keeps track of which tire belongs to which vehicle
         """
         return self.vehicle_to_tires
 
@@ -217,7 +214,7 @@ def keypoints_to_heatmap(
 
 def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
     """Get sample dicts."""
-    slugs = set(
+    per_object_slugs = set(
         [
             p.name.removesuffix(".json")
             for p in Config.annotations_directory.glob("*.json")
@@ -225,27 +222,30 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
     )
     samples = []
 
-    for slug in slugs:
-        sample_holdout = get_holdout(slug)
+    for per_object_slug in per_object_slugs:
+        slug = per_object_slug.split("--")[
+            0
+        ]  # Remove the vehicle_id assigned by Darwin
+        sample_holdout = get_holdout(per_object_slug)
         if holdout and holdout != sample_holdout:
             continue
         image_path = Config.images_directory / f"{slug}.jpg"
-        annotation_path = Config.annotations_directory / f"{slug}.json"
+        annotation_path = Config.annotations_directory / f"{per_object_slug}.json"
+        keypoints = []
         with open(annotation_path) as f:
-            keypoints = np.array(json.loads(f.read()))
-            if (
-                len(keypoints) < Config.num_classes
-            ):  # if all classes aren't present, take the first class (row) and repeat it to compensate for the absent classes.
-                repititions = Config.num_classes
-                axis = 1
-                keypoints = np.tile(keypoints[0], (repititions, axis))
-
+            annotation_content = json.loads(f.read())
+            for tire in Config.keypoint_names:
+                if tire in annotation_content:
+                    keypoints.append(annotation_content[tire])
+                else:
+                    keypoints.append(np.array([-1000, -1000]))  # pad with fake data
         samples.append(
             {
                 "holdout": sample_holdout.name,
                 "image_path": str(image_path),
-                "keypoints": keypoints,
+                "keypoints": np.array(keypoints),
                 "labels": Config.keypoint_names,
+                "bounding_box": annotation_content["bounding_box"],
             }
         )
     return samples
@@ -266,12 +266,16 @@ class SegmentationDataset(torch.utils.data.Dataset):
         sample = self.samples[idx]
         resize_height, resize_width = Config.image_resize
         keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
+        bbx = sample["bounding_box"] * np.array(
+            [resize_width, resize_height, resize_width, resize_height]
+        ).astype(int)
         heatmaps = []
         for x, y in keypoints:
             heatmaps.append(keypoints_to_heatmap(x, y, resize_width, resize_height))
         heatmaps = np.stack(heatmaps, 0)
         img = Image.open(sample["image_path"])
         x = image_transform(img)
+        x = TF.crop(x, bbx[0], bbx[1], bbx[2], bbx[3])
 
         return {
             "holdout": sample["holdout"],
