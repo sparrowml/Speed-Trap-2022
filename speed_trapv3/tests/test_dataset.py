@@ -1,6 +1,10 @@
 import os
 
-from speed_trapv3.keypoints.dataset import get_sample_dicts, version_annotations
+from speed_trapv3.keypoints.dataset import (
+    __get_item__,
+    get_sample_dicts,
+    version_annotations,
+)
 from speed_trapv3.keypoints.utils import Holdout, get_holdout
 
 

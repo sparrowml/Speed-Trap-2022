@@ -15,9 +15,7 @@ from sparrow_datums import Boxes, PType
 from .config import Config
 from .utils import Holdout, get_holdout
 
-image_transform = T.Compose(
-    [T.Resize(Config.image_resize), T.ToTensor(), T.functional.crop()]
-)
+image_transform = T.Compose([T.Resize(Config.image_resize), T.ToTensor()])
 
 
 class PrepAnnotations:
@@ -238,7 +236,7 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
                 if tire in annotation_content:
                     keypoints.append(annotation_content[tire])
                 else:
-                    keypoints.append(np.array([-1000, -1000]))  # pad with fake data
+                    keypoints.append(np.array([0, 0]))  # pad with fake data
         samples.append(
             {
                 "holdout": sample_holdout.name,
@@ -249,6 +247,17 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
             }
         )
     return samples
+
+
+def maskup(_img, _roi):
+    roi = _roi
+    img = np.array(_img)
+    mask = np.zeros((img.shape[0], img.shape[1]))
+    for row in range(roi[1], roi[3] + 1):
+        for col in range(roi[0], roi[2] + 1):
+            mask[row][col] = 1
+    img = (img * np.reshape(mask, (mask.shape[0], mask.shape[1], 1))).astype(np.uint8)
+    return Image.fromarray(img)
 
 
 class SegmentationDataset(torch.utils.data.Dataset):
@@ -266,16 +275,17 @@ class SegmentationDataset(torch.utils.data.Dataset):
         sample = self.samples[idx]
         resize_height, resize_width = Config.image_resize
         keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
-        bbx = sample["bounding_box"] * np.array(
-            [resize_width, resize_height, resize_width, resize_height]
+        bbx = (
+            sample["bounding_box"]
+            * np.array([resize_width, resize_height, resize_width, resize_height])
         ).astype(int)
         heatmaps = []
         for x, y in keypoints:
             heatmaps.append(keypoints_to_heatmap(x, y, resize_width, resize_height))
         heatmaps = np.stack(heatmaps, 0)
         img = Image.open(sample["image_path"])
+        img = maskup(img, bbx)
         x = image_transform(img)
-        x = TF.crop(x, bbx[0], bbx[1], bbx[2], bbx[3])
 
         return {
             "holdout": sample["holdout"],
