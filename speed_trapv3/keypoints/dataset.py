@@ -1,3 +1,4 @@
+import glob
 import json
 from ctypes import Union
 from distutils.command.config import config
@@ -15,7 +16,12 @@ from sparrow_datums import Boxes, PType
 from .config import Config
 from .utils import Holdout, get_holdout
 
-image_transform = T.Compose([T.Resize(Config.image_resize), T.ToTensor()])
+image_transform = T.Compose(
+    [
+        # T.Resize(Config.image_resize),
+        T.ToTensor()
+    ]
+)
 
 
 class PrepAnnotations:
@@ -249,15 +255,40 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
     return samples
 
 
-def maskup(_img, _roi):
-    roi = _roi
+# def maskup(_img, _roi):
+#     x1, y1, x2, y2 = _roi
+#     img = np.array(_img)
+#     mask = np.zeros((img.shape[0], img.shape[1]))
+#     mask[y1:y2, x1:x2] = 1
+#     img = (img * np.reshape(mask, (mask.shape[0], mask.shape[1], 1))).astype(np.uint8)
+#     return Image.fromarray(img)
+
+
+# def maskup(_img, _roi):
+#     roi = _roi
+#     img = np.array(_img)
+#     mask = np.zeros((img.shape[0], img.shape[1]))
+#     for row in range(roi[1], roi[3] + 1):
+#         for col in range(roi[0], roi[2] + 1):
+#             mask[row][col] = 1
+#     return img * np.expand_dims(mask, axis=2)
+
+
+def crop_and_resize(_bbx, _img, _crop_width, _crop_height):
+    bbx = _bbx
     img = np.array(_img)
-    mask = np.zeros((img.shape[0], img.shape[1]))
-    for row in range(roi[1], roi[3] + 1):
-        for col in range(roi[0], roi[2] + 1):
-            mask[row][col] = 1
-    img = (img * np.reshape(mask, (mask.shape[0], mask.shape[1], 1))).astype(np.uint8)
-    return Image.fromarray(img)
+    crop_width = _crop_width
+    crop_height = _crop_height
+    img_height, img_width, _ = img.shape
+    img_size = np.array([img_width, img_height, img_width, img_height])
+    x1, y1, x2, y2 = (bbx * img_size).astype(int)
+    img = img[y1:y2, x1:x2]
+    img = cv2.resize(img, (crop_width, crop_height))
+    return Image.fromarray(img.astype(np.uint8))
+
+
+def process_keypoints(_keypoints):
+    return _keypoints * np.array([Config.image_crop_size[0], Config.image_crop_size[1]])
 
 
 class SegmentationDataset(torch.utils.data.Dataset):
@@ -273,18 +304,21 @@ class SegmentationDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Get the tensor dict for a sample."""
         sample = self.samples[idx]
-        resize_height, resize_width = Config.image_resize
-        keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
-        bbx = (
-            sample["bounding_box"]
-            * np.array([resize_width, resize_height, resize_width, resize_height])
-        ).astype(int)
+        # resize_height, resize_width = Config.image_resize
+        # keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
+        # bbx = (
+        #     sample["bounding_box"]
+        #     * np.array([resize_width, resize_height, resize_width, resize_height])
+        # ).astype(int)
+        crop_width, crop_height = Config.image_crop_size
+        keypoints = process_keypoints(sample["keypoints"])
         heatmaps = []
         for x, y in keypoints:
-            heatmaps.append(keypoints_to_heatmap(x, y, resize_width, resize_height))
+            heatmaps.append(keypoints_to_heatmap(x, y, crop_width, crop_height))
         heatmaps = np.stack(heatmaps, 0)
         img = Image.open(sample["image_path"])
-        img = maskup(img, bbx)
+        # img = maskup(img, bbx)
+        img = crop_and_resize(sample["bounding_box"], img, crop_width, crop_height)
         x = image_transform(img)
 
         return {

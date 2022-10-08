@@ -22,7 +22,7 @@ def run_predictions() -> None:
         for slug in Path(Config.images_directory).glob("*.jpg")
     ]
     random.shuffle(slugs)
-    resize_height, resize_width = Config.image_resize
+    resize_height, resize_width = Config.image_crop_size
     for slug in tqdm(slugs):
         image_path = Config.images_directory / f"{slug}.jpg"
         img = Image.open(image_path)

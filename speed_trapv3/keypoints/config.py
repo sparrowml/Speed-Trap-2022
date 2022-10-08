@@ -25,9 +25,14 @@ class Config(_Config):
     keypoint_names = ("back_tire", "front_tire")
     # rgb_mean: tuple[float, float, float] = (0.485, 0.456, 0.406)
     # rgb_std: tuple[float, float, float] = (0.229, 0.224, 0.225)
-    image_resize: tuple[int, int] = (32, 32)  # (480, 640)  # Height, width
+    original_image_size: tuple[int, int] = (1280, 720)
+    # image_resize: tuple[int, int] = (480, 640)  # Height, width (32, 32)  #
+    image_crop_size: tuple[int, int] = (
+        762,
+        387,
+    )  # This value was derived by finding the maximum bounding box size for vehicles from the annotation files.
     num_classes: int = 2
-    patience = 10
+    patience = 5
 
     # TODO: we might want to make this paramete resolution independent
     covariance_2d: float = 20
