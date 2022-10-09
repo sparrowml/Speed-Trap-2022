@@ -250,28 +250,10 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
                 "keypoints": np.array(keypoints),
                 "labels": Config.keypoint_names,
                 "bounding_box": annotation_content["bounding_box"],
+                "annotation_path": str(annotation_path),
             }
         )
     return samples
-
-
-# def maskup(_img, _roi):
-#     x1, y1, x2, y2 = _roi
-#     img = np.array(_img)
-#     mask = np.zeros((img.shape[0], img.shape[1]))
-#     mask[y1:y2, x1:x2] = 1
-#     img = (img * np.reshape(mask, (mask.shape[0], mask.shape[1], 1))).astype(np.uint8)
-#     return Image.fromarray(img)
-
-
-# def maskup(_img, _roi):
-#     roi = _roi
-#     img = np.array(_img)
-#     mask = np.zeros((img.shape[0], img.shape[1]))
-#     for row in range(roi[1], roi[3] + 1):
-#         for col in range(roi[0], roi[2] + 1):
-#             mask[row][col] = 1
-#     return img * np.expand_dims(mask, axis=2)
 
 
 def crop_and_resize(_bbx, _img, _crop_width, _crop_height):
@@ -287,8 +269,28 @@ def crop_and_resize(_bbx, _img, _crop_width, _crop_height):
     return Image.fromarray(img.astype(np.uint8))
 
 
-def process_keypoints(_keypoints):
-    return _keypoints * np.array([Config.image_crop_size[0], Config.image_crop_size[1]])
+def process_keypoints(_keypoints, _bbx):
+    bbx = _bbx * np.array(
+        [
+            Config.original_image_size[0],
+            Config.original_image_size[1],
+            Config.original_image_size[0],
+            Config.original_image_size[1],
+        ]
+    ).astype(int)
+    x1, y1, x2, y2 = bbx
+    roi_h = y2 - y1
+    roi_w = x2 - x1
+    keypoints = _keypoints * np.array(
+        [Config.original_image_size[0], Config.original_image_size[1]]
+    )
+    shifted_keypoints = keypoints - np.array([[x1, y1], [x1, y1]])
+    shifted_relative_keypoints = shifted_keypoints / np.array([roi_w, roi_h])
+
+    return (
+        shifted_relative_keypoints
+        * np.array([Config.image_crop_size[0], Config.image_crop_size[1]])
+    ).astype(int)
 
 
 class SegmentationDataset(torch.utils.data.Dataset):
@@ -311,7 +313,7 @@ class SegmentationDataset(torch.utils.data.Dataset):
         #     * np.array([resize_width, resize_height, resize_width, resize_height])
         # ).astype(int)
         crop_width, crop_height = Config.image_crop_size
-        keypoints = process_keypoints(sample["keypoints"])
+        keypoints = process_keypoints(sample["keypoints"], sample["bounding_box"])
         heatmaps = []
         for x, y in keypoints:
             heatmaps.append(keypoints_to_heatmap(x, y, crop_width, crop_height))
@@ -324,6 +326,7 @@ class SegmentationDataset(torch.utils.data.Dataset):
         return {
             "holdout": sample["holdout"],
             "image_path": sample["image_path"],
+            "annotation_path": sample["annotation_path"],
             "heatmaps": heatmaps.astype("float32"),
             "keypoints": keypoints.astype("float32"),
             "labels": sample["labels"],
