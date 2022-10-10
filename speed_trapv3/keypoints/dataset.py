@@ -196,24 +196,27 @@ def keypoints_to_heatmap(
     x0: int, y0: int, w: int, h: int, covariance: float = Config.covariance_2d
 ) -> np.ndarray:
     """Create a 2D heatmap from an x, y pixel location."""
-    xx, yy = np.meshgrid(np.arange(w), np.arange(h))
-    zz = (
-        1
-        / (2 * np.pi * covariance**2)
-        * np.exp(
-            -(
-                (xx - x0) ** 2 / (2 * covariance**2)
-                + (yy - y0) ** 2 / (2 * covariance**2)
+    if x0 >= 0 and y0 >= 0:
+        xx, yy = np.meshgrid(np.arange(w), np.arange(h))
+        zz = (
+            1
+            / (2 * np.pi * covariance**2)
+            * np.exp(
+                -(
+                    (xx - x0) ** 2 / (2 * covariance**2)
+                    + (yy - y0) ** 2 / (2 * covariance**2)
+                )
             )
         )
-    )
-    # Normalize zz to be in [0, 1]
-    zz_min = zz.min()
-    zz_max = zz.max()
-    zz_range = zz_max - zz_min
-    if zz_range == 0:
-        zz_range += 1e-8
-    return (zz - zz_min) / zz_range
+        # Normalize zz to be in [0, 1]
+        zz_min = zz.min()
+        zz_max = zz.max()
+        zz_range = zz_max - zz_min
+        if zz_range == 0:
+            zz_range += 1e-8
+        return (zz - zz_min) / zz_range
+    else:
+        return np.zeros((h, w))
 
 
 def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
@@ -240,9 +243,14 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
             annotation_content = json.loads(f.read())
             for tire in Config.keypoint_names:
                 if tire in annotation_content:
-                    keypoints.append(annotation_content[tire])
+                    if tire == "back_tire":
+                        keypoints.insert(0, annotation_content[tire])
+                    if tire == "front_tire":
+                        keypoints.insert(1, annotation_content[tire])
                 else:
-                    keypoints.append(np.array([0, 0]))  # pad with fake data
+                    keypoints.append(
+                        np.array(Config.absent_class_pad_values)
+                    )  # Embed fake data
         samples.append(
             {
                 "holdout": sample_holdout.name,
@@ -319,7 +327,6 @@ class SegmentationDataset(torch.utils.data.Dataset):
             heatmaps.append(keypoints_to_heatmap(x, y, crop_width, crop_height))
         heatmaps = np.stack(heatmaps, 0)
         img = Image.open(sample["image_path"])
-        # img = maskup(img, bbx)
         img = crop_and_resize(sample["bounding_box"], img, crop_width, crop_height)
         x = image_transform(img)
 

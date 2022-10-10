@@ -20,6 +20,10 @@ class Config(_Config):
     # Dataset
     # darwin_team_slug: str = "hudl"
     # darwin_dataset_slug: str = "frame-annotations"
+    absent_class_pad_values: tuple[float, float] = (
+        -1.0,
+        -1.0,
+    )  # any negative value would work!
 
     # Model
     keypoint_names = ("back_tire", "front_tire")
