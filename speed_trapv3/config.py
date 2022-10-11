@@ -2,8 +2,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-DATA_DIRECTORY = Path("/code/data")
-DATASET_DIRECTORY = DATA_DIRECTORY / "datasets"
+# DATA_DIRECTORY = Path("/code/data")
+# DATASET_DIRECTORY = DATA_DIRECTORY / "datasets"
 
 
 @dataclass
