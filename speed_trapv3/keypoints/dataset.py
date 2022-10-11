@@ -196,27 +196,28 @@ def keypoints_to_heatmap(
     x0: int, y0: int, w: int, h: int, covariance: float = Config.covariance_2d
 ) -> np.ndarray:
     """Create a 2D heatmap from an x, y pixel location."""
-    if x0 >= 0 and y0 >= 0:
-        xx, yy = np.meshgrid(np.arange(w), np.arange(h))
-        zz = (
-            1
-            / (2 * np.pi * covariance**2)
-            * np.exp(
-                -(
-                    (xx - x0) ** 2 / (2 * covariance**2)
-                    + (yy - y0) ** 2 / (2 * covariance**2)
-                )
+    # if x0 >= 0 and y0 >= 0:
+    if x0 < 0 and y0 < 0:
+        x0 = 0
+        y0 = 0
+    xx, yy = np.meshgrid(np.arange(w), np.arange(h))
+    zz = (
+        1
+        / (2 * np.pi * covariance**2)
+        * np.exp(
+            -(
+                (xx - x0) ** 2 / (2 * covariance**2)
+                + (yy - y0) ** 2 / (2 * covariance**2)
             )
         )
-        # Normalize zz to be in [0, 1]
-        zz_min = zz.min()
-        zz_max = zz.max()
-        zz_range = zz_max - zz_min
-        if zz_range == 0:
-            zz_range += 1e-8
-        return (zz - zz_min) / zz_range
-    else:
-        return np.zeros((h, w))
+    )
+    # Normalize zz to be in [0, 1]
+    zz_min = zz.min()
+    zz_max = zz.max()
+    zz_range = zz_max - zz_min
+    if zz_range == 0:
+        zz_range += 1e-8
+    return (zz - zz_min) / zz_range
 
 
 def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
