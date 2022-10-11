@@ -16,12 +16,7 @@ from sparrow_datums import Boxes, PType
 from .config import Config
 from .utils import Holdout, get_holdout
 
-image_transform = T.Compose(
-    [
-        # T.Resize(Config.image_resize),
-        T.ToTensor()
-    ]
-)
+image_transform = T.Compose([T.ToTensor()])
 
 
 class PrepAnnotations:
@@ -315,12 +310,6 @@ class SegmentationDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """Get the tensor dict for a sample."""
         sample = self.samples[idx]
-        # resize_height, resize_width = Config.image_resize
-        # keypoints = sample["keypoints"] * np.array([resize_width, resize_height])
-        # bbx = (
-        #     sample["bounding_box"]
-        #     * np.array([resize_width, resize_height, resize_width, resize_height])
-        # ).astype(int)
         crop_width, crop_height = Config.image_crop_size
         keypoints = process_keypoints(sample["keypoints"], sample["bounding_box"])
         heatmaps = []
