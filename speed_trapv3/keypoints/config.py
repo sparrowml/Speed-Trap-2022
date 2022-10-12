@@ -15,7 +15,7 @@ class Config(_Config):
 
     annotations_directory: Path = dataset_directory / "annotations"
     predictions_directory: Path = dataset_directory / "predictions"
-    trained_model_path: Path = models_directory / "model.pth"
+    trained_model_path: Path = models_directory / "keypoints" / "model.pth"
 
     # Dataset
     absent_class_pad_values: tuple[float, float] = (
