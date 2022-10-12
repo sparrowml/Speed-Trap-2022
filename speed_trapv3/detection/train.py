@@ -45,15 +45,15 @@ class RetinaNetTrainer(pl.LightningModule):
             collate_fn=lambda x: x,
         )
 
-    @no_type_check
-    def test_dataloader(self) -> torch.utils.data.DataLoader:
-        """Set up test dataloader."""
-        return torch.utils.data.DataLoader(
-            self.test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.n_workers,
-            collate_fn=lambda x: x,
-        )
+    # @no_type_check
+    # def test_dataloader(self) -> torch.utils.data.DataLoader:
+    #     """Set up test dataloader."""
+    #     return torch.utils.data.DataLoader(
+    #         self.test_dataset,
+    #         batch_size=self.batch_size,
+    #         num_workers=self.n_workers,
+    #         collate_fn=lambda x: x,
+    #     )
 
     @no_type_check
     def training_step(self, batch: list[dict[str, torch.Tensor]], _) -> torch.Tensor:
@@ -93,25 +93,25 @@ class RetinaNetTrainer(pl.LightningModule):
             moda += moda_batch
         return moda.value
 
-    @no_type_check
-    def test_step(self, batch: list[dict[str, torch.Tensor]], _) -> MODA:
-        """Take a test step."""
-        images = list(map(itemgetter("image"), batch))
-        results = self.model(images)
-        moda = batch_moda(results, batch, self.n_classes)
-        self.log(
-            "test_moda",
-            moda.value,
-            prog_bar=True,
-            on_epoch=True,
-            batch_size=len(batch),
-        )
-        return moda
+    # @no_type_check
+    # def test_step(self, batch: list[dict[str, torch.Tensor]], _) -> MODA:
+    #     """Take a test step."""
+    #     images = list(map(itemgetter("image"), batch))
+    #     results = self.model(images)
+    #     moda = batch_moda(results, batch, self.n_classes)
+    #     self.log(
+    #         "test_moda",
+    #         moda.value,
+    #         prog_bar=True,
+    #         on_epoch=True,
+    #         batch_size=len(batch),
+    #     )
+    #     return moda
 
-    @no_type_check
-    def test_epoch_end(self, outputs: list[MODA]) -> float:
-        """Process test steps."""
-        return self.validation_epoch_end(outputs)
+    # @no_type_check
+    # def test_epoch_end(self, outputs: list[MODA]) -> float:
+    #     """Process test steps."""
+    #     return self.validation_epoch_end(outputs)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Configure optimizers."""
@@ -123,12 +123,13 @@ def train_model(
 ) -> None:
     """Run train model command."""
     early_stop = EarlyStopping(
-        "dev_moda", mode="max", patience=Config.early_stopping_patience
+        "box_loss", mode="min", patience=Config.early_stopping_patience
     )
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         gpus=Config.gpus,
-        callbacks=[early_stop],
+        # callbacks=[early_stop],
+        # overfit_batches=1,
     )
     lightning = RetinaNetTrainer()
     if Config.trained_model_path.exists():

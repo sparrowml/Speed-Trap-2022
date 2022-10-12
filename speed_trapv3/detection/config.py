@@ -23,15 +23,15 @@ class Config(_Config):
     # Model
     labels = ["vehicle"]
     n_classes: int = 1
-    patience = 5
+    early_stopping_patience = 6
     trainable_backbone_layers: int = 2
     max_boxes: int = 20
 
     # Training
-    batch_size: int = 4
-    num_workers: int = 4
+    batch_size: int = 8
+    n_workers: int = 4
     max_epochs: int = 100
     gpus: int = 1
 
     # HP Optimization
-    learning_rate: float = 0.002247
+    learning_rate: float = 0.00025

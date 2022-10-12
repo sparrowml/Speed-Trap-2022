@@ -191,7 +191,6 @@ def keypoints_to_heatmap(
     x0: int, y0: int, w: int, h: int, covariance: float = Config.covariance_2d
 ) -> np.ndarray:
     """Create a 2D heatmap from an x, y pixel location."""
-    # if x0 >= 0 and y0 >= 0:
     if x0 < 0 and y0 < 0:
         x0 = 0
         y0 = 0
