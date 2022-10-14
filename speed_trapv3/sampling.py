@@ -25,12 +25,13 @@ def get_cap(
 def get_frame_idx(
     _video_name: str = "WBuBqS9h8_",
     _n_frames: int = 1800,
-    _path: str = "data/datasets/images",
+    _path: str = str(Config.images_directory),
 ):
     n_frames = _n_frames
     train_set = os.listdir(_path)
     filename = ""
     while filename == "" or filename in train_set:
+        filename = ""
         frame_idx = round(n_frames * np.random.uniform())
         filename = f"{_video_name}{filename}{frame_idx}.jpg"
     return (filename, frame_idx)
@@ -48,5 +49,3 @@ def sample_video_frames(
         frame, (450, 200), (1280, 720), thickness=5, color=(0, 255, 0)
     )
     cv2.imwrite(str(Config.images_directory / image_name), frame)
-    with open("inference.txt", "a") as f:
-        f.write(str(Config.images_directory / image_name) + "\n")

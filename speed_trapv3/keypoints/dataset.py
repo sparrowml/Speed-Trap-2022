@@ -296,6 +296,24 @@ def process_keypoints(_keypoints, _bbx):
     ).astype(int)
 
 
+def keypoints_post_inference_processing(
+    _keypoints, _resized_roi_w, _resized_roi_h, _roi_w, _roi_h, _x1, _y1
+):
+    cropped_resized_abs_keypoints = (
+        _keypoints  # keypoints are in absolute space w.r.t the resized roi
+    )
+    cropped_resized_rel_keypoints = cropped_resized_abs_keypoints / np.array(
+        [_resized_roi_w, _resized_roi_h]
+    )  # convert to relative
+    cropped_abs_keypoints = cropped_resized_rel_keypoints * np.array(
+        [_roi_w, _roi_h]
+    )  # keypoints are in absolute space w.r.t the roi dimensions (dimensions defined by the vehicle bounding box)
+    abs_keypoints = cropped_abs_keypoints + np.array(
+        [_x1, _y1]
+    )  # keypoints are in absolute space w.r.t the original image size (Darwin file's dimensions)
+    return abs_keypoints
+
+
 class SegmentationDataset(torch.utils.data.Dataset):
     """Dataset class for Segmentations model."""
 
