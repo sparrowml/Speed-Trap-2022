@@ -127,7 +127,13 @@ def save_pretrained() -> None:
     print(f"dvc add {Config.pretrained_model_path}")
 
 
-def export_model(input_shape: tuple[int, int, int] = (3, 608, 1080)) -> None:
+def export_model(
+    input_shape: tuple[int, int, int] = (
+        3,
+        Config.original_image_size[1],
+        Config.original_image_size[0],
+    )
+) -> None:
     """Export ONNX model."""
     x = torch.randn(*input_shape)
     model = RetinaNet().eval()

@@ -2,6 +2,7 @@
 from typing import Callable
 
 from .dataset import version_detection_annotations
+from .model import export_model
 
 # from .inference import import_predictions, run_predictions
 from .train import save_checkpoint, train_model
@@ -13,6 +14,7 @@ def commands() -> dict[str, Callable[..., None]]:
         "version-annotations": version_detection_annotations,
         "save-checkpoint": save_checkpoint,
         "train-model": train_model,
+        "export-model": export_model,
         # "import-predictions": import_predictions,
         # "run-predictions": run_predictions,
     }

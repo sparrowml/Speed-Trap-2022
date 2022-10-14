@@ -104,4 +104,4 @@ def track_objects(
         )
         vehicle_tracker.track(vehicle_boxes)
     vehicle_chunk = vehicle_tracker.make_chunk(fps, fps)
-    vehicle_chunk.to_file(video_path.parent / f"{slug}_player.json.gz")
+    vehicle_chunk.to_file(video_path.parent / f"{slug}_vehicle.json.gz")
