@@ -87,7 +87,7 @@ def track_objects(
     """
     video_path = Path(video_path)
     slug = video_path.name.removesuffix(".mp4")
-    vehicle_tracker = Tracker(Config.player_iou_threshold)
+    vehicle_tracker = Tracker(Config.vehicle_iou_threshold)
     sess = ort.InferenceSession(str(model_path), providers=["CUDAExecutionProvider"])
     fps, n_frames = get_video_properties(video_path)
     reader = imageio.get_reader(video_path)
@@ -95,13 +95,14 @@ def track_objects(
         data = reader.get_data(i)
         input_height, input_width = data.shape[:2]
         x = transform_image(data)
-        probs, boxes = sess.run(None, {"Images": x})
-        boxes = boxes[0]
-        scores = np.max(probs[0], -1)
-        labels = np.argmax(probs[0], -1)
+        boxes, scores, labels = sess.run(None, {"input": x[0]})
+        # boxes = boxes[0]
+        # scores = np.max(probs[0], -1)
+        # labels = np.argmax(probs[0], -1)
         vehicle_boxes = get_frame_box(
             boxes, scores, labels, image_width=input_width, image_height=input_height
         )
         vehicle_tracker.track(vehicle_boxes)
     vehicle_chunk = vehicle_tracker.make_chunk(fps, fps)
-    vehicle_chunk.to_file(video_path.parent / f"{slug}_vehicle.json.gz")
+    # vehicle_chunk.to_file(video_path.parent / f"{slug}_vehicle.json.gz")
+    vehicle_chunk.to_file(Config.prediction_directory / f"{slug}_vehicle.json.gz")
