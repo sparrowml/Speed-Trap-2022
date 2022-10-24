@@ -96,13 +96,13 @@ def track_objects(
         input_height, input_width = data.shape[:2]
         x = transform_image(data)
         boxes, scores, labels = sess.run(None, {"input": x[0]})
+
         # boxes = boxes[0]
-        # scores = np.max(probs[0], -1)
-        # labels = np.argmax(probs[0], -1)
+        scores = np.max(scores, -1)
+        labels = np.argmax(labels, -1)
         vehicle_boxes = get_frame_box(
             boxes, scores, labels, image_width=input_width, image_height=input_height
         )
         vehicle_tracker.track(vehicle_boxes)
-    vehicle_chunk = vehicle_tracker.make_chunk(fps, fps)
-    # vehicle_chunk.to_file(video_path.parent / f"{slug}_vehicle.json.gz")
+    vehicle_chunk = vehicle_tracker.make_chunk(fps, Config.vehicle_tracklet_length)
     vehicle_chunk.to_file(Config.prediction_directory / f"{slug}_vehicle.json.gz")
