@@ -16,6 +16,7 @@ class Config(_Config):
     annotations_directory: Path = dataset_directory / "detection" / "annotations"
     predictions_directory: Path = dataset_directory / "detection" / "predictions"
     trained_model_path: Path = models_directory / "detection" / "model.pth"
+    onnx_model_path: Path = models_directory / "detection" / "model.onnx"
 
     # Dataset
     min_size = 800
@@ -26,6 +27,7 @@ class Config(_Config):
     early_stopping_patience = 6
     trainable_backbone_layers: int = 2
     max_boxes: int = 20
+    original_image_size: tuple[int, int] = (1280, 720)  # width, height
 
     # Training
     batch_size: int = 8
