@@ -20,8 +20,8 @@ class Config(_Config):
     # Tracking hyperparameters
     vehicle_class_index: int = 0
     vehicle_euclidean_threshold: float = 0.5
-    vehicle_score_threshold: float = 0.3
-    vehicle_tracklet_length: int = 2
+    vehicle_score_threshold: float = 0.5
+    vehicle_tracklet_length: int = 3
     vehicle_iou_threshold: float = 0.5
 
     # Visualization

@@ -1,4 +1,5 @@
 """Object tracking."""
+import os
 from pathlib import Path
 from typing import Union
 
@@ -7,7 +8,7 @@ import imageio
 import numpy as np
 import onnxruntime as ort
 from PIL import Image
-from sparrow_datums import FrameBoxes, PType
+from sparrow_datums import AugmentedBoxTracking, BoxTracking, FrameBoxes, PType
 from sparrow_tracky import Tracker, euclidean_distance
 from tqdm import tqdm
 
@@ -70,6 +71,16 @@ def get_video_properties(video_path: Union[str, Path]) -> tuple[float, int]:
     return fps, n_frames
 
 
+def make_path(path_in):
+    """Check if a given path exists and make one if it doesn't.
+
+    Args:
+        path_in (str): _description_ Input path that might need to be created.
+    """
+    if not os.path.exists(path_in):
+        os.mkdir(path_in)
+
+
 def track_objects(
     video_path: Union[str, Path],
     model_path: Union[str, Path] = Config.onnx_model_path,
@@ -93,16 +104,64 @@ def track_objects(
     reader = imageio.get_reader(video_path)
     for i in tqdm(range(n_frames)):
         data = reader.get_data(i)
+        data = cv2.rectangle(
+            data, (450, 200), (1280, 720), thickness=5, color=(0, 255, 0)
+        )
         input_height, input_width = data.shape[:2]
         x = transform_image(data)
         boxes, scores, labels = sess.run(None, {"input": x[0]})
-
-        # boxes = boxes[0]
-        scores = np.max(scores, -1)
-        labels = np.argmax(labels, -1)
         vehicle_boxes = get_frame_box(
             boxes, scores, labels, image_width=input_width, image_height=input_height
         )
         vehicle_tracker.track(vehicle_boxes)
+    make_path(str(Config.prediction_directory / slug))
     vehicle_chunk = vehicle_tracker.make_chunk(fps, Config.vehicle_tracklet_length)
-    vehicle_chunk.to_file(Config.prediction_directory / f"{slug}_vehicle.json.gz")
+    vehicle_chunk.to_file(
+        Config.prediction_directory / slug / f"{slug}_vehicle.json.gz"
+    )
+
+
+def write_to_json(chunk_path_in, video_path_in):
+    """Convert the cunk into an AugmentedBoxTracking object and then write into a JSON file. This is a helper method to convert_to_darwin() method.
+
+    Args:
+        chunk_path_in (str): Location of the .gz files.
+        video_path_in (str): Location of the input video.
+    """
+    chunk_path = chunk_path_in
+    slug = chunk_path.name[:-8]
+    filename = slug
+    video_path = video_path_in
+    chunk = BoxTracking.from_file(chunk_path).to_absolute().to_tlwh()
+    aug_box = AugmentedBoxTracking.from_box_tracking(chunk)
+    aug_box.to_darwin_file(
+        output_path=Config.prediction_directory / f"{slug}.json",
+        filename=filename,
+        label_names=["vehicle"],
+    )
+
+
+def convert_to_darwin(path_in="/code/data/datasets/tracking/predictions"):
+    """Write the chunk into a json.gz file.
+
+    Args:
+        path_in (str, optional): The source folder that contains the output of all the videos._description_. Defaults to "/code/data/datasets/tracking/predictions".
+    """
+    path = path_in
+    n_skipped = 0
+    n_created = 0
+    n_total = 0
+    video_name_list = os.listdir(path)
+    for video_name in tqdm(video_name_list):
+        video_path = os.path.join(path, video_name)
+        for chunk_path in Path(video_path).rglob("*.json.gz"):
+            n_total += 1
+            try:
+                write_to_json(chunk_path, video_path)
+                n_created += 1
+            except Exception as e:
+                print(f"{str(chunk_path)} skipped due to chunk error")
+                print(e)
+                n_skipped += 1
+                continue
+    print("Total", n_total, "\n Created", n_created, "\n Total skipped", n_skipped)
