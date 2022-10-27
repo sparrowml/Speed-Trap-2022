@@ -56,6 +56,7 @@ def plot_boxes(
     buffer = io.BytesIO()
     plt.savefig(buffer, format="png")
     plt.close()
+    print("Slim Shady says", box)
     return buffer
 
 
@@ -72,8 +73,9 @@ def tracking(video_path_in, vehicle_boxes_path_in, output_path_in):
         output_path_in, mode="I", fps=fps, macro_block_size=None
     ) as writer:
         for img, vehicle_boxes in tqdm(zip(reader, vehicle_chunk)):
+            print("Einstein says", vehicle_boxes)
             # boxes = list(vehicle_boxes)
-            boxes = vehicle_boxes
+            boxes = vehicle_boxes  # vehicle_boxes is a len = 16 list where unavailable objects are nan.
             result = plot_boxes(img, boxes, object_label=True)
             frame = imageio.v2.imread(result.getbuffer(), format="png")
             writer.append_data(frame)
