@@ -21,10 +21,7 @@ def plot_boxes(
     fig = plt.figure(frameon=False, figsize=(width / 100, height / 100), dpi=100)
     fig.add_axes((0, 0, 1, 1))
     plt.imshow(image)
-    # for boxes in tqdm(boxes_in):
-    #     print("Madona says boxes", boxes)
     for i, box in enumerate(boxes_in.to_absolute()):
-        # for i, box in enumerate(boxes.to_absolute()):
         if not np.isfinite(box.x):
             continue
         x1 = np.clip(box.x1, 2, width - 2)
@@ -66,13 +63,10 @@ def tracking(video_path_in, vehicle_boxes_path_in, output_path_in):
     vehicle_chunk = AugmentedBoxTracking.from_box_tracking(
         BoxTracking.from_file(vehicle_boxes_path_in)
     )
-    # if vehicle_chunk.fps != fps:
-    #     vehicle_chunk = vehicle_chunk.resample(fps)
     with imageio.get_writer(
         output_path_in, mode="I", fps=fps, macro_block_size=None
     ) as writer:
         for img, vehicle_boxes in tqdm(zip(reader, vehicle_chunk)):
-            # boxes = list(vehicle_boxes)
             boxes = vehicle_boxes  # vehicle_boxes is a len = 16 list where unavailable objects are nan.
             result = plot_boxes(img, boxes, object_label=True)
             frame = imageio.v2.imread(result.getbuffer(), format="png")
