@@ -1,4 +1,3 @@
 /detection-keypoint-inference
 /source_video
-/tracking_output_videos
-/tracking_inference_frame_lib
+/tracking_outputs
