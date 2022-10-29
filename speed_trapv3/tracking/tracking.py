@@ -135,7 +135,7 @@ def write_to_json(chunk_path_in, video_path_in):
     chunk = BoxTracking.from_file(chunk_path).to_absolute().to_tlwh()
     aug_box = AugmentedBoxTracking.from_box_tracking(chunk)
     aug_box.to_darwin_file(
-        output_path=Config.prediction_directory / f"{slug}.json",
+        output_path=Config.prediction_directory / f"objectwise_aggregation_{slug}.json",
         filename=filename,
         label_names=["vehicle"],
     )
