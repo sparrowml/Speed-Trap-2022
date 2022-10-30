@@ -9,13 +9,35 @@ from sys import _current_frames
 from typing import Any, Optional
 
 import cv2
+import imageio
 import numpy as np
 import pandas as pd
 import requests
 from tqdm import tqdm
 from typing_extensions import Self
 
+from speed_trapv3.tracking.tracking import get_video_properties
+
 from .config import Config
+
+
+def video_to_frames(_video_path, _save_path):
+    """Save all the frame of a given video as images.
+
+    Parameters
+    ----------
+    _video_path : str
+        src video
+    _save_path : str
+        dst of the video
+    """
+    reader = imageio.get_reader(_video_path)
+    _, n_frames = get_video_properties(_video_path)
+    for i in tqdm(range(n_frames)):
+        frame = reader.get_data(i)
+        im_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        filename = f"{i}.jpg"
+        cv2.imwrite(os.path.join(_save_path, filename), im_rgb)
 
 
 class RandomResampleVideoToImages:
