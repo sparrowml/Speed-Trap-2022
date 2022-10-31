@@ -1,6 +1,7 @@
 images/
 temp_imgs/
 source_video/
-temp_imgs2/
-temp_imgs3/
-rule0_rule1_imgs/
+rule0_imgs/
+rule1_imgs/
+rule2_imgs/
+frame_imgs/
