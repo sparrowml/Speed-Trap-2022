@@ -1,18 +1,20 @@
-import base64
-import gc
-import json
+# import base64
+# import gc
+# import json
 import os
 from math import floor
-from pathlib import Path
-from random import random
-from sys import _current_frames
+
+# from pathlib import Path
+# from random import random
+# from sys import _current_frames
 from typing import Any, Optional
 
 import cv2
 import imageio
 import numpy as np
-import pandas as pd
-import requests
+
+# import pandas as pd
+# import requests
 from tqdm import tqdm
 from typing_extensions import Self
 
@@ -72,6 +74,18 @@ class RandomResampleVideoToImages:
         self,
         _path: str = str(Config.images_directory),
     ):
+        """Renders a randomly picked frame index that doesn't exist in the given image directory.
+
+        Parameters
+        ----------
+        _path : str, optional
+            Path of the exisisting images, by default str(Config.images_directory)
+
+        Returns
+        -------
+        (filename, frame_idx) : Tuple
+            Returns a tuple of filename and frame index.
+        """
         n_frames = self.find_total_frames(self.get_cap())
         train_set = os.listdir(_path)
         filename = ""
@@ -186,6 +200,18 @@ class ResampleVideoToVideo:
         return frame_list
 
     def find_whole_video_duration(self, _cap):
+        """_summary_
+
+         Parameters
+         ----------
+         _cap :
+             cap object of the input video
+
+         Returns
+         -------
+        float
+             Duration of the input video in seconds
+        """
         return round(_cap.get(cv2.CAP_PROP_FRAME_COUNT) / _cap.get(cv2.CAP_PROP_FPS))
 
     def write_to_mp4(self, cap_in, name_in, frames_in):
@@ -229,7 +255,7 @@ class ResampleVideoToVideo:
         cv2.destroyAllWindows()
 
     def produce_resampled_video(self):
-        """Produce 100 randomly picked 1 min videos covering all stages of a volleyball game."""
+        """Produce a randomly picked 30Sec video for the given percentile."""
         print("****************Started producing video...**************")
         percentile = self.get_percentile()
         cap = cv2.VideoCapture(self.get_source_path())

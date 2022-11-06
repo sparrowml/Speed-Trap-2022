@@ -45,7 +45,6 @@ def get_sample_dicts(holdout: Optional[Holdout] = None) -> list[dict[str, Any]]:
         image_path = Config.images_directory / f"{slug}.jpg"
         annotation_path = Config.annotations_directory / f"{slug}.json.gz"
         boxes = FrameAugmentedBoxes.from_file(annotation_path).to_tlbr()
-        # labels = np.array([Config.labels[i] for i in boxes.labels])
         samples.append(
             {
                 "image_path": str(image_path),

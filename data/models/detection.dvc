@@ -1,0 +1,5 @@
+outs:
+- md5: e5a65bce465e1255819718cc81743521.dir
+  size: 258047221
+  nfiles: 2
+  path: detection
