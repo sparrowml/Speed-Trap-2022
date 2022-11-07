@@ -15,6 +15,7 @@ class Config(_Config):
     dataset_directory: Path = _Config.dataset_directory / "tracking"
     annotations_directory: Path = dataset_directory / "annotations"
     onnx_model_path: Path = models_directory / "model.onnx"
+    pth_model_path: Path = models_directory / "model.pth"
     prediction_directory: Path = dataset_directory / "predictions"
 
     # Tracking hyperparameters

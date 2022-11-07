@@ -12,6 +12,8 @@ from sparrow_datums import AugmentedBoxTracking, BoxTracking, FrameBoxes, PType
 from sparrow_tracky import Tracker, euclidean_distance
 from tqdm import tqdm
 
+from ..detection.model import RetinaNet
+from ..tracking.config import Config as TrackConfig
 from .config import Config
 
 
@@ -83,7 +85,7 @@ def make_path(path_in):
 
 def track_objects(
     video_path: Union[str, Path],
-    model_path: Union[str, Path] = Config.onnx_model_path,
+    model_path: Union[str, Path] = Config.pth_model_path,
 ) -> None:
     """
     Track ball and the players in a video.
@@ -99,7 +101,8 @@ def track_objects(
     video_path = Path(video_path)
     slug = video_path.name.removesuffix(".mp4")
     vehicle_tracker = Tracker(Config.vehicle_iou_threshold)
-    sess = ort.InferenceSession(str(model_path), providers=["CUDAExecutionProvider"])
+    detection_model = RetinaNet().eval().cuda()
+    detection_model.load(model_path)
     fps, n_frames = get_video_properties(video_path)
     reader = imageio.get_reader(video_path)
     for i in tqdm(range(n_frames)):
@@ -107,12 +110,17 @@ def track_objects(
         data = cv2.rectangle(
             data, (450, 200), (1280, 720), thickness=5, color=(0, 255, 0)
         )
-        input_height, input_width = data.shape[:2]
-        x = transform_image(data)
-        boxes, scores, labels = sess.run(None, {"input": x[0]})
-        vehicle_boxes = get_frame_box(
-            boxes, scores, labels, image_width=input_width, image_height=input_height
-        )
+        # input_height, input_width = data.shape[:2]
+        aug_boxes = detection_model(data)
+        aug_boxes = aug_boxes[aug_boxes.scores > TrackConfig.vehicle_score_threshold]
+        boxes = aug_boxes.array[:, :4]
+        vehicle_boxes = FrameBoxes(
+            boxes,
+            PType.absolute_tlbr,  # (x1, y1, x2, y2) in absolute pixel coordinates [With respect to the original image size]
+            image_width=data.shape[1],
+            image_height=data.shape[0],
+        ).to_relative()
+
         vehicle_tracker.track(vehicle_boxes)
     make_path(str(Config.prediction_directory / slug))
     vehicle_chunk = vehicle_tracker.make_chunk(fps, Config.vehicle_tracklet_length)
@@ -129,13 +137,12 @@ def write_to_json(chunk_path_in, video_path_in):
         video_path_in (str): Location of the input video.
     """
     chunk_path = chunk_path_in
-    slug = chunk_path.name[:-8]
-    filename = slug
-    video_path = video_path_in
+    slug = Path(video_path_in).name.removesuffix(".mp4")
+    filename = f"objectwise_aggregation.json"
     chunk = BoxTracking.from_file(chunk_path).to_absolute().to_tlwh()
     aug_box = AugmentedBoxTracking.from_box_tracking(chunk)
     aug_box.to_darwin_file(
-        output_path=Config.prediction_directory / f"objectwise_aggregation_{slug}.json",
+        output_path=Config.prediction_directory / slug / filename,
         filename=filename,
         label_names=["vehicle"],
     )
