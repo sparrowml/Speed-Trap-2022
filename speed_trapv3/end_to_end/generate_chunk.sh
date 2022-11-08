@@ -1,1 +1,1 @@
-speed-trapv3 tracking track-objects /code/data/datasets/source_videos/75_resampled_vid.mp4
+speed-trapv3 tracking track-objects /code/data/datasets/source_videos/25_resampled_vid.mp4

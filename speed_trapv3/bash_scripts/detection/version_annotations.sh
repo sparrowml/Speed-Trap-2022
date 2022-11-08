@@ -1,0 +1,1 @@
+speed-trapv3 detection version-annotations ~/.darwin/datasets/sparrow-computing/kj_speedtrap_v2/releases/retrainv1/annotations

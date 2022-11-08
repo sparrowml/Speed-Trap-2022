@@ -1,0 +1,1 @@
+speed-trapv3 detection save-checkpoint /code/lightning_logs/version_0/checkpoints/epoch=99-step=4900.ckpt

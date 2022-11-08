@@ -128,7 +128,7 @@ def train_model(
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         gpus=Config.gpus,
-        # callbacks=[early_stop],
+        callbacks=[early_stop],
         # overfit_batches=1,
     )
     lightning = RetinaNetTrainer()

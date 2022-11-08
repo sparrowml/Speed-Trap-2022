@@ -1,1 +1,1 @@
-speed-trapv3 tracking write-to-json /code/data/datasets/tracking/predictions/75_resampled_vid/75_resampled_vid_vehicle.json.gz /code/data/datasets/source_videos/75_resampled_vid.mp4
+speed-trapv3 tracking write-to-json /code/data/datasets/tracking/predictions/25_resampled_vid/25_resampled_vid_vehicle.json.gz /code/data/datasets/source_videos/25_resampled_vid.mp4
