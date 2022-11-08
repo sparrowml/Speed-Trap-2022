@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from math import sqrt
 from pathlib import Path
@@ -11,6 +12,15 @@ from sklearn import linear_model
 from tqdm import tqdm
 
 from .config import Config as SpeedConfig
+
+
+def get_angle(_x1, _y1, _x2, _y2):
+    if (_x2 - _x1) != 0:
+        return 90 - math.degrees(math.atan((_y2 - _y1) / (_x2 - _x1)))
+    else:
+        return 90 - math.degrees(
+            math.atan((_y2 - _y1) / ((_x2 - _x1) + 0.000001))
+        )  # avoid zero diviion error
 
 
 def validate_inclusion(_x, _y, _cx, _cy, _r):
@@ -244,9 +254,17 @@ def estimate_speed(video_path_in):
                     back_tire_x, back_tire_y, future_back_tire_x, future_back_tire_y
                 )
                 if current_keypoints_distance <= future_keypoints_distance:
+                    alpha = get_angle(
+                        back_tire_x, back_tire_y, future_back_tire_x, future_back_tire_y
+                    )
+                    beta = get_angle(
+                        back_tire_x, back_tire_y, front_tire_x, front_tire_y
+                    )
                     if (
-                        future_keypoints_distance - current_keypoints_distance
-                    ) < SpeedConfig.distance_error_threshold:
+                        (future_keypoints_distance - current_keypoints_distance)
+                        < SpeedConfig.distance_error_threshold
+                        and SpeedConfig.in_between_angle >= alpha + beta
+                    ):
                         approximate_speed = round(
                             SpeedConfig.MPERSTOMPH
                             * SpeedConfig.WHEEL_BASE

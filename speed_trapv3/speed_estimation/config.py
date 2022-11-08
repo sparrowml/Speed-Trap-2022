@@ -23,6 +23,7 @@ class Config(_Config):
     distance_error_threshold = 5
     INCLUSION_RADIUS = 20
     DETECTION_AREA_START_X = 800
+    in_between_angle = 90 #in degrees
 
     # Calibration
     # REFERENCE: https://www.carwow.co.uk/guides/glossary/what-is-a-car-wheelbase-0282
