@@ -1,0 +1,5 @@
+outs:
+- md5: b615e89899da325b02144e630ffbaa46.dir
+  size: 298766320
+  nfiles: 5
+  path: source_videos

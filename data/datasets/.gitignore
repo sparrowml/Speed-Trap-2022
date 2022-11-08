@@ -1,3 +1,10 @@
 images/
 temp_imgs/
-source_video/
+source_videos/
+rule0_imgs/
+rule1_imgs/
+rule2_imgs/
+final_imgs/
+frame_imgs/
+/images
+/source_videos
