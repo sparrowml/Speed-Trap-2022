@@ -36,6 +36,24 @@ def frames_to_seconds(_fps, _n_frames):
 
 
 def get_objectwise_keypoints(rule0, rule1, rule2, video_path_in):
+    """Here, we apply 3 rules to filter out noise in the keypoints predictions.
+
+    Parameters
+    ----------
+    rule0 : bool
+        Remove any keypoints in vehicles where x1 <600 or x1 >= 1100
+    rule1 : bool
+        If a keypoint is located in the upper half of the bounding box, remove it.
+    rule2 : bool
+        Draw a circle around the front tire keypoint and if the back tire is located inside of the circle, keep the tire that has the highest sigmoid score. Throw the other one away!!
+    video_path_in : str
+        _description_
+
+    Returns
+    -------
+    list
+        A list of dictionaries that include which vehicles appeared in each frame, including it's tire locations.
+    """
     objectwise_keypoints = {}
     slug = Path(video_path_in).name.removesuffix(".mp4")
     f = open(SpeedConfig.json_directory / slug / "framewise_aggregation.json")
@@ -96,15 +114,28 @@ def get_objectwise_keypoints(rule0, rule1, rule2, video_path_in):
     return objectwise_keypoints
 
 
-def estimate_speed(video_path_in):
-    video_path = video_path_in
-    slug = Path(video_path).name.removesuffix(".mp4")
-    f = open(SpeedConfig.json_directory / slug / "framewise_aggregation.json")
-    frame_to_predictions_map = json.load(f)
+def open_objects_to_predictions_map(slug):
     f = open(SpeedConfig.json_directory / slug / "objectwise_aggregation.json")
-    objects_to_predictions_map = json.load(f)[
+    return json.load(f)[
         "annotations"
     ]  # the object_id attribute of frame_to_predictions_map are the keys of object_to_predictions_map
+
+
+def filter_bad_tire_pairs(video_path_in):
+    """Keypoints that violated the rules were marked as (-100, -100) in get_objectwise_keypoints() method. Here, we filter out keypoints where both back and front tire are (-1, -1).
+
+    Parameters
+    ----------
+    video_path_in : str
+        Path of the input video
+    """
+    video_path = video_path_in
+    # f = open(SpeedConfig.json_directory / slug / "framewise_aggregation.json")
+    # frame_to_predictions_map = json.load(f)
+    # f = open(SpeedConfig.json_directory / slug / "objectwise_aggregation.json")
+    # objects_to_predictions_map = json.load(f)[
+    #     "annotations"
+    # ]  # the object_id attribute of frame_to_predictions_map are the keys of object_to_predictions_map
     objectwise_keypoints = get_objectwise_keypoints(True, True, True, video_path)
     object_names = list(objectwise_keypoints.keys())
     #
@@ -124,23 +155,31 @@ def estimate_speed(video_path_in):
             continue
         else:
             vehicle_keypoints[obj_idx] = noisy_vehicle_keypoints
-    vehicle_indices = list(vehicle_keypoints.keys())
+    return object_names, list(vehicle_keypoints.keys()), objectwise_keypoints
+
+
+def straight_line_fit(objectwise_keypoints, object_name):
+    back_tire_x_list = []
+    back_tire_y_list = []
+    front_tire_x_list = []
+    front_tire_y_list = []
+    for keypoints_per_frame in objectwise_keypoints[object_name]:
+        back_tire_x, back_tire_y, front_tire_x, front_tire_y = keypoints_per_frame
+        back_tire_x_list.append(back_tire_x)
+        back_tire_y_list.append(back_tire_y)
+        front_tire_x_list.append(front_tire_x)
+        front_tire_y_list.append(front_tire_y)
     #
-    speed_collection = {}
-    for vehicle_index in vehicle_indices:  # Looping through all objects in the video
-        approximate_speed = -1
-        back_tire_x_list = []
-        back_tire_y_list = []
-        front_tire_x_list = []
-        front_tire_y_list = []
-        object_name = object_names[vehicle_index]
-        for keypoints_per_frame in objectwise_keypoints[object_name]:
-            back_tire_x, back_tire_y, front_tire_x, front_tire_y = keypoints_per_frame
-            back_tire_x_list.append(back_tire_x)
-            back_tire_y_list.append(back_tire_y)
-            front_tire_x_list.append(front_tire_x)
-            front_tire_y_list.append(front_tire_y)
-        #
+    data = {
+        "back_tire_x": back_tire_x_list,
+        "back_tire_y": back_tire_y_list,
+        "front_tire_x": front_tire_x_list,
+        "front_tire_y": front_tire_y_list,
+    }
+    df = pd.DataFrame(data)
+    df.drop(df[df.back_tire_x < 0].index, inplace=True)
+    df.drop(df[df.front_tire_x < 0].index, inplace=True)
+    if len(df) == 0:  # If all the data are single points, do not filter it.
         data = {
             "back_tire_x": back_tire_x_list,
             "back_tire_y": back_tire_y_list,
@@ -148,70 +187,84 @@ def estimate_speed(video_path_in):
             "front_tire_y": front_tire_y_list,
         }
         df = pd.DataFrame(data)
-        df.drop(df[df.back_tire_x < 0].index, inplace=True)
-        df.drop(df[df.front_tire_x < 0].index, inplace=True)
-        if len(df) == 0:  # If all the data are single points, do not filter it.
-            data = {
-                "back_tire_x": back_tire_x_list,
-                "back_tire_y": back_tire_y_list,
-                "front_tire_x": front_tire_x_list,
-                "front_tire_y": front_tire_y_list,
-            }
-            df = pd.DataFrame(data)
-        x = df.iloc[:, :-1]
-        y = df.iloc[:, -1:]
-        #
-        model = linear_model.LinearRegression()
-        model.fit(x, y)
-        coef = model.coef_[0]
-        bias = model.intercept_
-        coef = [
-            i + 0.0000001 if i == 0 else i for i in coef
-        ]  # Add a small value to avoid division by zero.
-        #
-        back_tire_x_list = []
-        back_tire_y_list = []
-        front_tire_x_list = []
-        front_tire_y_list = []
-        for i in range(len(data["back_tire_x"])):
-            back_tire_x = data["back_tire_x"][i]
-            back_tire_y = data["back_tire_y"][i]
-            front_tire_x = data["front_tire_x"][i]
-            front_tire_y = data["front_tire_y"][i]
-            if (back_tire_x < 0 and back_tire_y < 0) and (
-                front_tire_x < 0 and front_tire_y < 0
-            ):
-                back_tire_x_list.append(back_tire_x)
-                back_tire_y_list.append(back_tire_y)
-                front_tire_x_list.append(front_tire_x)
-                front_tire_y_list.append(front_tire_y)
-                continue
-            if back_tire_x < 0:
-                back_tire_x = (
-                    front_tire_y - back_tire_y * coef[1] - front_tire_x * coef[2] - bias
-                ) / coef[0]
-            if back_tire_y < 0:
-                back_tire_y = (
-                    front_tire_y - back_tire_x * coef[0] - front_tire_x * coef[2] - bias
-                ) / coef[1]
-            if front_tire_x < 0:
-                front_tire_x = (
-                    front_tire_y - back_tire_x * coef[0] - back_tire_y * coef[1] - bias
-                ) / coef[2]
+    x = df.iloc[:, :-1]
+    y = df.iloc[:, -1:]
+    #
+    model = linear_model.LinearRegression()
+    model.fit(x, y)
+    coef = model.coef_[0]
+    bias = model.intercept_
+    coef = [
+        i + 0.0000001 if i == 0 else i for i in coef
+    ]  # Add a small value to avoid division by zero.
+    return coef, bias, data
 
-            if front_tire_y < 0:
-                front_tire_y = (
-                    back_tire_x * coef[0]
-                    + back_tire_y * coef[1]
-                    + front_tire_x * coef[2]
-                    + bias
-                )
 
+def fill_missing_keypoints(coef, bias, data):
+    back_tire_x_list = []
+    back_tire_y_list = []
+    front_tire_x_list = []
+    front_tire_y_list = []
+    for i in range(len(data["back_tire_x"])):
+        back_tire_x = data["back_tire_x"][i]
+        back_tire_y = data["back_tire_y"][i]
+        front_tire_x = data["front_tire_x"][i]
+        front_tire_y = data["front_tire_y"][i]
+        if (back_tire_x < 0 and back_tire_y < 0) and (
+            front_tire_x < 0 and front_tire_y < 0
+        ):
             back_tire_x_list.append(back_tire_x)
             back_tire_y_list.append(back_tire_y)
             front_tire_x_list.append(front_tire_x)
             front_tire_y_list.append(front_tire_y)
-        #
+            continue
+        if back_tire_x < 0:
+            back_tire_x = (
+                front_tire_y - back_tire_y * coef[1] - front_tire_x * coef[2] - bias
+            ) / coef[0]
+        if back_tire_y < 0:
+            back_tire_y = (
+                front_tire_y - back_tire_x * coef[0] - front_tire_x * coef[2] - bias
+            ) / coef[1]
+        if front_tire_x < 0:
+            front_tire_x = (
+                front_tire_y - back_tire_x * coef[0] - back_tire_y * coef[1] - bias
+            ) / coef[2]
+
+        if front_tire_y < 0:
+            front_tire_y = (
+                back_tire_x * coef[0]
+                + back_tire_y * coef[1]
+                + front_tire_x * coef[2]
+                + bias
+            )
+
+        back_tire_x_list.append(back_tire_x)
+        back_tire_y_list.append(back_tire_y)
+        front_tire_x_list.append(front_tire_x)
+        front_tire_y_list.append(front_tire_y)
+    return back_tire_x_list, back_tire_y_list, front_tire_x_list, front_tire_y_list
+    #
+
+
+def estimate_speed(video_path_in):
+    video_path = video_path_in
+    slug = Path(video_path).name.removesuffix(".mp4")
+    objects_to_predictions_map = open_objects_to_predictions_map(slug)
+    object_names, vehicle_indices, objectwise_keypoints = filter_bad_tire_pairs(
+        video_path
+    )
+    speed_collection = {}
+    for vehicle_index in vehicle_indices:  # Looping through all objects in the video
+        approximate_speed = -1
+        object_name = object_names[vehicle_index]
+        coef, bias, data = straight_line_fit(objectwise_keypoints, object_name)
+        (
+            back_tire_x_list,
+            back_tire_y_list,
+            front_tire_x_list,
+            front_tire_y_list,
+        ) = fill_missing_keypoints(coef, bias, data)
 
         vehicle_speed = []
         skipped = 0
@@ -225,8 +278,7 @@ def estimate_speed(video_path_in):
         back_tire_y_list = []
         front_tire_x_list = []
         front_tire_y_list = []
-        speed_checkpoints = []
-        #
+        # Speed calculation algorithm starts here...
         vehicle_speed = {}
         total_num_points = len(objectwise_keypoints[object_name])
         object_start = objects_to_predictions_map[vehicle_index]["segments"][0][0]
