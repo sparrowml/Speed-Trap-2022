@@ -78,7 +78,7 @@ def train_model(checkpoint_path: Optional[str] = None) -> None:
     """Train model command."""
     pl_model = SegmentationLightning()
     trainer = pl.Trainer(
-        callbacks=[EarlyStopping("dev_rel_error", patience=Config.patience)],
+        # callbacks=[EarlyStopping("dev_rel_error", patience=Config.patience)],
         # callbacks=None,
         # resume_from_checkpoint=checkpoint_path,
         log_every_n_steps=5,

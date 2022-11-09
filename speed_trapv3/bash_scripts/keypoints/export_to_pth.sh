@@ -1,0 +1,1 @@
+speed-trapv3 keypoints save-checkpoint /code/lightning_logs/version_1/checkpoints/epoch=21-step=2992.ckpt
