@@ -1,1 +1,0 @@
-speed-trapv3 speed estimate-speed /code/data/datasets/source_videos/75_resampled_vid.mp4

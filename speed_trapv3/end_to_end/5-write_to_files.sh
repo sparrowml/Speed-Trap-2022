@@ -1,0 +1,1 @@
+speed-trapv3 speed write-results /code/data/datasets/tracking/predictions/25_resampled_vid/speed_log.json /code/data/datasets/tracking/predictions/25_resampled_vid/framewise_aggregation.json /code/data/datasets/tracking/predictions/25_resampled_vid/25_resampled_vid_vehicle.json.gz /code/data/datasets/source_videos/25_resampled_vid.mp4

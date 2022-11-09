@@ -1,26 +1,15 @@
 import io
 import json
-import os
 from pathlib import Path
 from typing import Optional
 
-import cv2
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torchvision.transforms as T
-from sparrow_datums import AugmentedBoxTracking, Boxes, BoxTracking, FrameBoxes, PType
+from sparrow_datums import AugmentedBoxTracking, BoxTracking
 from tqdm import tqdm
 
-from ..keypoints.config import Config as KeyConfig
-from ..keypoints.dataset import (
-    crop_and_resize,
-    keypoints_post_inference_processing,
-    process_keypoints,
-)
-from ..keypoints.model import SegmentationModel
-from ..tracking.tracking import get_video_properties, transform_image, write_to_json
 from .config import Config as SpeedConfig
 
 
@@ -42,10 +31,6 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
     framewise_aggregation = json.load(f)
     f.close()
 
-    # f = open(objectwise_aggregation_path, 'r')
-    # objectwise_aggregation = json.load(f)
-    # f.close()
-
     reader = imageio.get_reader(video_path)
     fps = reader.get_meta_data()["fps"]
     frame_border = True
@@ -60,7 +45,6 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
     )
     vehicle_tracklet_list = BoxTracking.from_file(gz_path).to_dict()["object_ids"]
     speed_log_vehice_ids = list(speed_log.keys())
-    image_transform = T.Compose([T.ToTensor()])
     slug = Path(video_path_in).name.removesuffix(".mp4")
     with imageio.get_writer(
         SpeedConfig.json_directory / slug / f"{slug}_predictions.mp4",
@@ -220,17 +204,11 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
                 f"Vehicle Count = {len(object_count_log)}",
                 backgroundcolor=(1, 0.5, 1, 0.5),
                 c="black",
-                # size=20,
                 fontsize=16,
             )
             buffer = io.BytesIO()
             plt.savefig(buffer, format="png")
             plt.close()
             frame = imageio.v2.imread(buffer.getbuffer(), format="png")
-            # @TODO: Uncomment to write the frames into images.
-            # im_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # save_path = "/code/data/datasets/final_imgs"
-            # filename = str(frame_idx) + ".jpg"
-            # cv2.imwrite(os.path.join(save_path, filename), im_rgb)
             writer.append_data(frame)
             frame_idx += 1

@@ -1,11 +1,8 @@
 import json
 import math
-import os
 from math import sqrt
 from pathlib import Path
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn import linear_model
@@ -15,6 +12,24 @@ from .config import Config as SpeedConfig
 
 
 def get_angle(_x1, _y1, _x2, _y2):
+    """Calculates the angle between the stright line formed by x1, y1, x2, y2 and the horizontal line cuts through x1, y1 to find it's complementary angle.
+
+    Parameters
+    ----------
+    _x1 : float
+        x coordinate of the origin of the stright line
+    _y1 : float
+        y coordinate of the origin of the stright line
+    _x2 : float
+        x coordinate of the end of the stright line
+    _y2 : float
+        y coordinate of the end of the stright line
+
+    Returns
+    -------
+    float
+        complementary angle in degrees
+    """
     if (_x2 - _x1) != 0:
         return 90 - math.degrees(math.atan((_y2 - _y1) / (_x2 - _x1)))
     else:
@@ -24,14 +39,66 @@ def get_angle(_x1, _y1, _x2, _y2):
 
 
 def validate_inclusion(_x, _y, _cx, _cy, _r):
+    """Decides if a given point is inside the given radius.
+
+    Parameters
+    ----------
+    _x : float
+        x coordinate of the given point
+    _y : float
+        y coordinate of the given point
+    _cx : float
+        x coordinate of the center
+    _cy : float
+        y coordinate of the center
+    _r : float
+        radius of the circle.
+
+    Returns
+    -------
+    bool
+        Indicates if a point is within the circle or not.
+    """
     return (_x - _cx) ** 2 + (_y - _cy) ** 2 < _r**2
 
 
 def get_distance(_x1, _y1, _x2, _y2):
+    """Finds the distance between two points.
+
+    Parameters
+    ----------
+    _x1 : float
+        x coordinate point 1
+    _y1 : float
+        y coordinate of point 1
+    _x2 : float
+        x coordinate of point 2
+    _y2 : float
+        y coordinate of point 2
+
+    Returns
+    -------
+    float
+        distance between two points
+    """
     return sqrt((_x1 - _x2) ** 2 + (_y1 - _y2) ** 2)
 
 
 def frames_to_seconds(_fps, _n_frames):
+    """Converts frames to seconds given the frames per second property of a video.
+
+    Parameters
+    ----------
+    _fps : int
+        frame rate of the video
+    _n_frames : int
+        number of frames
+
+    Returns
+    -------
+    float
+        time elapsed in seconds
+    """
     return (1 / _fps) * _n_frames
 
 
@@ -115,6 +182,18 @@ def get_objectwise_keypoints(rule0, rule1, rule2, video_path_in):
 
 
 def open_objects_to_predictions_map(slug):
+    """Opens objectwise_aggregation.json
+
+    Parameters
+    ----------
+    slug : str
+        slug of the video
+
+    Returns
+    -------
+    list
+        A list of framewise information of the video.
+    """
     f = open(SpeedConfig.json_directory / slug / "objectwise_aggregation.json")
     return json.load(f)[
         "annotations"
@@ -128,21 +207,18 @@ def filter_bad_tire_pairs(video_path_in):
     ----------
     video_path_in : str
         Path of the input video
+        Returns
+    -------
+    Union[list, dict]
+        All the object_tracklet_ids appeared in the video, object_id of the vehicles that remained after applying the rules, All the objectwise keypoints after rules were applied.
     """
     video_path = video_path_in
-    # f = open(SpeedConfig.json_directory / slug / "framewise_aggregation.json")
-    # frame_to_predictions_map = json.load(f)
-    # f = open(SpeedConfig.json_directory / slug / "objectwise_aggregation.json")
-    # objects_to_predictions_map = json.load(f)[
-    #     "annotations"
-    # ]  # the object_id attribute of frame_to_predictions_map are the keys of object_to_predictions_map
     objectwise_keypoints = get_objectwise_keypoints(True, True, True, video_path)
     object_names = list(objectwise_keypoints.keys())
     #
     vehicle_keypoints = {}
     for obj_idx in range(len(object_names)):
         dont_care_count = 0
-        object_name = object_names[obj_idx]
         noisy_vehicle_keypoints = objectwise_keypoints[object_names[obj_idx]]
         for vehicle_keypoint_pair in noisy_vehicle_keypoints:
             back_x, back_y, front_x, front_y = vehicle_keypoint_pair
@@ -159,6 +235,20 @@ def filter_bad_tire_pairs(video_path_in):
 
 
 def straight_line_fit(objectwise_keypoints, object_name):
+    """Fit the good keypoints of a given object (vehicle) into a stright line.
+
+    Parameters
+    ----------
+    objectwise_keypoints : Dict
+        All the keypoints after the rules have been applied.
+    object_name : list
+        Name of the object that we are currently processing.
+
+    Returns
+    -------
+    Union[list, dict]
+        coefficients of the trained linear regression model, bias of that model, data that was used to train the model.
+    """
     back_tire_x_list = []
     back_tire_y_list = []
     front_tire_x_list = []
@@ -201,6 +291,22 @@ def straight_line_fit(objectwise_keypoints, object_name):
 
 
 def fill_missing_keypoints(coef, bias, data):
+    """Fill in missing values of single tires.
+
+    Parameters
+    ----------
+    coef : list
+        Coefficients of the linear regression model
+    bias : float
+        bias of the model
+    data : Dict
+        Data that was used to train the model.
+
+    Returns
+    -------
+    Tuple of lists
+        returns four lists representing all four coordinates of the tires.
+    """
     back_tire_x_list = []
     back_tire_y_list = []
     front_tire_x_list = []
@@ -244,10 +350,16 @@ def fill_missing_keypoints(coef, bias, data):
         front_tire_x_list.append(front_tire_x)
         front_tire_y_list.append(front_tire_y)
     return back_tire_x_list, back_tire_y_list, front_tire_x_list, front_tire_y_list
-    #
 
 
 def estimate_speed(video_path_in):
+    """Estimate the speed of the vehicles in the video.
+
+    Parameters
+    ----------
+    video_path_in : str
+        Source video path
+    """
     video_path = video_path_in
     slug = Path(video_path).name.removesuffix(".mp4")
     objects_to_predictions_map = open_objects_to_predictions_map(slug)
