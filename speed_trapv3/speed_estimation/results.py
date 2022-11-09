@@ -55,6 +55,7 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
         frame_idx = 0
         object_count_log = {}
         last_known_speed = {}
+        vehiclewise_speed_record = {}
         for img, vehicle_boxes in tqdm(zip(reader, vehicle_chunk)):
             frame_log = {}
             frame_log["frame_idx"] = frame_idx
@@ -103,6 +104,14 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
                         text_strings.append(
                             f"\n current speed: {speed_log[str(i)][str(frame_idx)]} mph"
                         )
+                        if i in vehiclewise_speed_record:
+                            vehiclewise_speed_record[i].append(
+                                speed_log[str(i)][str(frame_idx)]
+                            )
+                        else:
+                            vehiclewise_speed_record[i] = [
+                                speed_log[str(i)][str(frame_idx)]
+                            ]
                         last_known_speed[str(i)] = speed_log[str(i)][str(frame_idx)]
                     elif str(i) in speed_log_vehice_ids and str(i) in last_known_speed:
                         text_strings.append(f"object_id: {i}")
@@ -212,3 +221,33 @@ def write_results(speed_log_path, framewise_aggregation_path, gz_path, video_pat
             frame = imageio.v2.imread(buffer.getbuffer(), format="png")
             writer.append_data(frame)
             frame_idx += 1
+        vehiclewise_speed_record_summary = {}
+        for object_id in vehiclewise_speed_record.keys():
+            vehiclewise_speed_record_summary[object_id] = {
+                "MaxSpeed": max(vehiclewise_speed_record[object_id]),
+                "AvgSpeed": sum(vehiclewise_speed_record[object_id])
+                / len(vehiclewise_speed_record[object_id]),
+            }
+        highest_speed = -np.inf
+        fastest_vehicle = None
+        total_vehicle_avg_speed = 0
+        for object_id in vehiclewise_speed_record_summary:
+            if vehiclewise_speed_record_summary[object_id]["MaxSpeed"] > highest_speed:
+                highest_speed = vehiclewise_speed_record_summary[object_id]["MaxSpeed"]
+                fastest_vehicle = object_id
+            total_vehicle_avg_speed += vehiclewise_speed_record_summary[object_id][
+                "AvgSpeed"
+            ]
+        average_vehicle_speed = int(
+            total_vehicle_avg_speed / len(vehiclewise_speed_record_summary)
+        )
+        vehicle_count = len(object_count_log)
+        final_summary = {
+            "MaxSpeed": highest_speed,
+            "FastestVehicle": fastest_vehicle,
+            "AverageVehicleSpeed": average_vehicle_speed,
+            "VehicleCount": vehicle_count,
+        }
+        f = open(SpeedConfig.json_directory / slug / "speed_report.json", "w")
+        json.dump(final_summary, f)
+        f.close()

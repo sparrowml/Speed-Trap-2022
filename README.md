@@ -44,6 +44,13 @@ WBuBqS9h8_51536
 28238
 50410
 
+## Before retraining
+https://user-images.githubusercontent.com/63982009/200953267-8741dead-e932-4ac1-901c-52dd893336fb.mp4
+
+## After retraining
+https://user-images.githubusercontent.com/63982009/200953951-fbce303f-40e8-4416-a684-36cfcc67a0d7.mp4
+
+
 
 
 
