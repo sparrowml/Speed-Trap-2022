@@ -57,3 +57,8 @@ https://user-images.githubusercontent.com/63982009/200953267-8741dead-e932-4ac1-
 ## Demo after retraining
 https://user-images.githubusercontent.com/63982009/200953951-fbce303f-40e8-4416-a684-36cfcc67a0d7.mp4
 
+## Run your own video
+Make sure your provide the file path of the input video to the other shell scripts at the end_to_end folder.
+```bash
+  sh /code/end_to_end/master_scipt.sh
+```
