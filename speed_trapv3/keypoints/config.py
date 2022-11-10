@@ -13,7 +13,7 @@ class Config(_Config):
     dataset_directory: Path = _Config.dataset_directory
     models_directory: Path = _Config.models_directory
 
-    annotations_directory: Path = dataset_directory / "annotations"
+    annotations_directory: Path = dataset_directory / "keypoints" / "annotations"
     predictions_directory: Path = dataset_directory / "keypoints" / "predictions"
     trained_model_path: Path = models_directory / "keypoints" / "model.pth"
 

@@ -1,20 +1,13 @@
-# import base64
-# import gc
-# import json
 import os
 from math import floor
 
-# from pathlib import Path
-# from random import random
-# from sys import _current_frames
 from typing import Any, Optional
 
 import cv2
 import imageio
 import numpy as np
 
-# import pandas as pd
-# import requests
+
 from tqdm import tqdm
 from typing_extensions import Self
 
