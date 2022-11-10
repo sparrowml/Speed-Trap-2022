@@ -71,3 +71,5 @@ Make sure your provide the file path of the input video to the other shell scrip
 ```bash
   sh /code/end_to_end/master_scipt.sh
 ```
+## Checkout the slides 
+https://docs.google.com/presentation/d/1IzZu4Pl6_Gr0gDDzN1gi-32mFEHhm8t7TMFzMLAyMyM/edit?usp=sharing
