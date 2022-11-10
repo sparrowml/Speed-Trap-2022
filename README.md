@@ -14,7 +14,7 @@
 35600, 
 53162, 
 
-## No key points annotation
+## No keypoints annotation
 27690,
 51530,
 40479,
@@ -57,6 +57,15 @@ https://user-images.githubusercontent.com/63982009/200953267-8741dead-e932-4ac1-
 ## Demo after retraining
 https://user-images.githubusercontent.com/63982009/200953951-fbce303f-40e8-4416-a684-36cfcc67a0d7.mp4
 
+## Demo Speed Report
+```bash
+{
+    "MaxSpeed": 12,
+    "FastestVehicle": 1,
+    "AverageVehicleSpeed": 8,
+    "VehicleCount": 4
+}
+```
 ## Run your own video
 Make sure your provide the file path of the input video to the other shell scripts in the end_to_end folder.
 ```bash
