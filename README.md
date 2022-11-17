@@ -46,7 +46,7 @@
 ## Keypoints post-processing
 ![image](https://user-images.githubusercontent.com/63982009/201197852-4ddf7c6d-6b18-4082-9d14-92b4a31e2097.png)
 ## Speed algorithm
-![image](https://user-images.githubusercontent.com/63982009/201198527-8aa53f0c-76b9-4656-9635-974aadd89951.png)
+![image](https://user-images.githubusercontent.com/63982009/202248762-a7708299-9108-493a-9f60-9c32c7e1af1c.png)
 
 ## Inference Pipeline
 ![image](https://user-images.githubusercontent.com/63982009/201197122-ff1d82a5-b18c-4687-bcae-afbbefe84cf5.png)

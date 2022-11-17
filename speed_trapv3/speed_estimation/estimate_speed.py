@@ -432,8 +432,8 @@ def estimate_speed(video_path_in):
                     if (
                         # (future_keypoints_distance - current_keypoints_distance)
                         # < SpeedConfig.distance_error_threshold
-                        SpeedConfig.in_between_angle
-                        >= alpha + beta
+                        SpeedConfig.in_between_angle >= alpha + beta
+                        and (j - i) > 1
                     ):
                         approximate_speed = round(
                             SpeedConfig.MPERSTOMPH

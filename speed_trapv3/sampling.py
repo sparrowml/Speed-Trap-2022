@@ -1,13 +1,11 @@
+import gc
 import os
 from math import floor
-
 from typing import Any, Optional
 
 import cv2
 import imageio
 import numpy as np
-
-
 from tqdm import tqdm
 from typing_extensions import Self
 
@@ -134,10 +132,9 @@ class ResampleVideoToVideo:
     def get_clip_duration_sec(self):
         return self.VIDEO_DURATION_SEC
 
-    def find_total_frames(self, video_in):
+    def find_total_frames(self, video_in, duration_in):
         """Calculate the total number of frames in the video."""
-        cap = video_in
-        return int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        return int(duration_in * int(video_in.get(cv2.CAP_PROP_FPS)))
 
     def find_start_frame(self, percentile_in, frames_in, duration_in):
         """
@@ -225,42 +222,30 @@ class ResampleVideoToVideo:
             save_name, cv2.VideoWriter_fourcc(*"MP4V"), fps, (width, height)
         )
         for i in range(len(frame_list)):
-            out.write(frame_list[i])
+            frame = cv2.rectangle(
+                frame_list[i], (450, 200), (1280, 720), (0, 255, 0), thickness=4
+            )
+            out.write(frame)
         out.release()
-
-    def view_mp4(self, mp4_path_in):
-        """
-        View a saved video.
-        :param mp4_path_in: The path of the saved mp4 file.
-        """
-        cap = cv2.VideoCapture(mp4_path_in)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        while cap.isOpened():
-            ret, frame = cap.read()
-            # if frame is read correctly ret is True
-            if not ret:
-                print("Can't receive frame (stream end?). Exiting ...")
-                break
-            cv2.imshow("frame", frame)
-            if cv2.waitKey(fps) == ord("q"):
-                break
-        cap.release()
-        cv2.destroyAllWindows()
 
     def produce_resampled_video(self):
         """Produce a randomly picked 30Sec video for the given percentile."""
         print("****************Started producing video...**************")
         percentile = self.get_percentile()
         cap = cv2.VideoCapture(self.get_source_path())
-        total_frames = self.find_total_frames(cap)
+        total_frames = self.find_total_frames(cap, self.VIDEO_DURATION_SEC)
+        total_src_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         whole_video_duration_sec = self.find_whole_video_duration(cap)
         start_frame = self.find_start_frame(
-            percentile, total_frames, whole_video_duration_sec
+            percentile, total_src_frames, whole_video_duration_sec
         )
-        end_frame = self.find_end_frame(percentile, total_frames)
+        end_frame = start_frame + total_frames
+        print("Aragon says", total_frames, start_frame, end_frame)
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         frame_list = self.find_frame_list(cap, start_frame, end_frame)
         self.write_to_mp4(cap, f"{percentile}_resampled_vid", frame_list)
         cap.release()
         cv2.destroyAllWindows()
+        del cap
+        gc.collect()
         print("*****************The process is completed...******************")
