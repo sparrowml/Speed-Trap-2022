@@ -417,7 +417,12 @@ def estimate_speed(video_path_in):
                 future_keypoints_distance = get_distance(
                     back_tire_x, back_tire_y, future_back_tire_x, future_back_tire_y
                 )
-                if current_keypoints_distance <= future_keypoints_distance:
+                # if current_keypoints_distance <= future_keypoints_distance:
+                if (
+                    current_keypoints_distance - future_keypoints_distance
+                ) >= -SpeedConfig.distance_error_threshold and (
+                    current_keypoints_distance - future_keypoints_distance
+                ) <= SpeedConfig.distance_error_threshold:
                     alpha = get_angle(
                         back_tire_x, back_tire_y, future_back_tire_x, future_back_tire_y
                     )
@@ -425,9 +430,10 @@ def estimate_speed(video_path_in):
                         back_tire_x, back_tire_y, front_tire_x, front_tire_y
                     )
                     if (
-                        (future_keypoints_distance - current_keypoints_distance)
-                        < SpeedConfig.distance_error_threshold
-                        and SpeedConfig.in_between_angle >= alpha + beta
+                        # (future_keypoints_distance - current_keypoints_distance)
+                        # < SpeedConfig.distance_error_threshold
+                        SpeedConfig.in_between_angle >= alpha + beta
+                        and (j - i) > 1
                     ):
                         approximate_speed = round(
                             SpeedConfig.MPERSTOMPH
