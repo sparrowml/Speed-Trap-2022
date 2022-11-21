@@ -37,3 +37,5 @@ class Config(_Config):
 
     # HP Optimization
     learning_rate: float = 0.00025
+    # Evaluation
+    score_threshold = 0.5
