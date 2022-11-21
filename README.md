@@ -1,45 +1,4 @@
 # Speed-Trap-2022 by Kaveen Jayamanna
-## Bad training data
-35526, 
-49343, 
-6851 
-## Bad training data (retrain)
-53284, 
-35582, 
-53311, 
-8672, 
-3022, 
-33161, 
-4513, 
-35600, 
-53162, 
-
-## No keypoints annotation
-27690,
-51530,
-40479,
-50848,
-51536 
-## No keypoints  annotations (retrain)
-7127, 
-27532, 
-27665, 
-30061, 
-151, 
-27032, 
-351, 
-50063, 
-482, 
-51985, 
-6248,  
-33146, 
-52008,
-29133, 
-3013, 
-27636, 
-32616, 
-28238, 
-50410
 
 ## Keypoints pre-processing
 ![image](https://user-images.githubusercontent.com/63982009/201197583-32cfa5cc-22d5-49c7-9fcb-9c6f05f3d2d6.png)
