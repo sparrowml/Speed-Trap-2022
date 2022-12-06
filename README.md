@@ -10,10 +10,7 @@
 ## Inference Pipeline
 ![image](https://user-images.githubusercontent.com/63982009/201197122-ff1d82a5-b18c-4687-bcae-afbbefe84cf5.png)
 
-## Demo: Before retraining
-https://user-images.githubusercontent.com/63982009/200953267-8741dead-e932-4ac1-901c-52dd893336fb.mp4
-
-## Demo: After retraining
+## Demo: Annotated Video
 https://user-images.githubusercontent.com/63982009/200953951-fbce303f-40e8-4416-a684-36cfcc67a0d7.mp4
 
 ## Demo: Speed Report
@@ -31,4 +28,4 @@ Make sure your provide the file path of the input video to the other shell scrip
   sh /code/end_to_end/master_scipt.sh
 ```
 ## Checkout the slides 
-https://docs.google.com/presentation/d/1IzZu4Pl6_Gr0gDDzN1gi-32mFEHhm8t7TMFzMLAyMyM/edit?usp=sharing
+https://docs.google.com/presentation/d/16cEvbsb7iYs5qG545faQrqu5BjU6hFsMbbGjZzDePfo/edit?usp=sharing

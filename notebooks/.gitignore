@@ -8,6 +8,7 @@ quick_tracking_visulization.ipynb
 view_val_dataloader_pred.ipynb
 view_onnx_detections.ipynb
 crop_for_keypoints.ipynb
+display_heatmaps.ipynb
 
 
 

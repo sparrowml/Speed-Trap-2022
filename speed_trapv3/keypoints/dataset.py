@@ -3,7 +3,7 @@ import json
 from ctypes import Union
 from distutils.command.config import config
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import cv2
 import numpy as np
